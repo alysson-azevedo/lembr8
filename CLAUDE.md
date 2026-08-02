@@ -1,6 +1,6 @@
 # lembr8
 
-Definição do produto: ainda não escrita. Quando existir, estará em `docs/product/`. Até lá, não assuma nada sobre o produto.
+PWA de lembretes: o usuário registra tarefas a fazer e é lembrado via notificação. Produto em `docs/product/`, stack em `docs/stack.md`.
 
 ## Modo de trabalho (obrigatório em toda sessão)
 
@@ -29,5 +29,8 @@ Fora desses pontos, agentes têm autonomia — incluindo deploy e merge na main.
 
 ## Estrutura de contexto
 - `CLAUDE.md` — este arquivo: modo de trabalho e ponteiros.
+- `docs/stack.md` — stack técnica, ambientes e migrações.
+- `docs/workflow.md` — processo de tarefas no Linear (time LB): states, labels, regras. **Leitura obrigatória antes de atuar em qualquer issue.**
+- `docs/agents/` — comportamento de cada agente por papel (po, pd, dev, qa).
 - `docs/decisions.md` — log de decisões (ADRs curtos).
 - `docs/product/` — specs de produto (a serem criadas em sessões futuras).

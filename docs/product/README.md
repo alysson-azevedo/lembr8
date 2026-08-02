@@ -1,5 +1,8 @@
-# Produto
+# Produto — Lembr8
 
-Ainda não definido. As specs do lembr8 serão escritas aqui em sessões futuras.
+App de lembretes: permite ao usuário registrar tarefas a fazer e ser lembrado delas via notificação (Web Push).
 
-Agentes: não assumam nada sobre o produto até que este diretório tenha conteúdo.
+Specs detalhadas de funcionalidades serão adicionadas neste diretório conforme forem definidas. Pontos já mapeados para spec futura:
+- Tratamento de timezone do usuário nos horários de lembrete.
+
+Agentes: não assumam funcionalidades além do que estiver especificado aqui.
