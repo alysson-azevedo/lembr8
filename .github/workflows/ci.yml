@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # Os testes rodam contra o Supabase local em Docker — nenhum serviço na nuvem.
+      - name: Subir Supabase local
+        run: pnpm exec supabase start
+
+      - name: Test
+        run: pnpm test
+
+      - name: Derrubar Supabase local
+        if: always()
+        run: pnpm exec supabase stop --no-backup
