@@ -29,6 +29,7 @@
 		"eslint-config-next": "16.2.12",
 		"supabase": "^2.111.0",
 		"tailwindcss": "^4",
+		"tsx": "^4.23.5",
 		"typescript": "^5",
 		"vitest": "^3.2.4",
 		"web-push": "^3.6.7"
