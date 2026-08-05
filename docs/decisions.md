@@ -2,6 +2,11 @@
 
 Formato: uma seção por decisão — contexto em 1-2 linhas, decisão, consequências. Mais recente no topo.
 
+## 2026-08-05 — Preview Deploys apontam para o banco de produção
+**Contexto:** com o ambiente de teste local em Docker, um preview hospedado na Vercel não alcança o banco na máquina do dev. Opções avaliadas: (A) preview aponta para o banco de **prod** — custo e setup zero, risco de poluir dados reais durante o QA; (B) 2º projeto Supabase **cloud** dedicado a preview — free tier permite 2 projetos (custo zero), exige aplicar migrações nos dois.
+**Decisão (humano, LB-1):** opção **A** — os Preview Deploys usam o banco de produção. "Não tem porque deixar complexo agora."
+**Consequências:** as env vars `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` e `SUPABASE_SECRET_KEY` do ambiente Preview da Vercel apontam para `tfgbkyjwzqvvklutmeln` (mesmos valores de Production). O QA passa a ter ambiente de preview funcional, mas **escreve em dados reais**: validações destrutivas ou em massa não devem ser feitas no preview, e a RLS é a única barreira entre contas. Migrações precisam estar aplicadas em prod antes de o preview depender delas. Revisitar se o volume de dados reais crescer — a opção B continua disponível a custo zero.
+
 ## 2026-08-03 — Repositório público
 **Contexto:** o projeto não é produto comercial.
 **Decisão:** `alysson-azevedo/lembr8` permanece público.
@@ -16,11 +21,6 @@ Formato: uma seção por decisão — contexto em 1-2 linhas, decisão, consequ�
 **Contexto:** o Supabase substituiu `anon key` / `service_role key` pelo par publishable/secret ([discussão 29260](https://github.com/orgs/supabase/discussions/29260)).
 **Decisão:** usar o formato novo em todos os ambientes.
 **Consequências:** env vars são `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` e `SUPABASE_SECRET_KEY`.
-
-## PENDENTE — Banco dos Preview Deploys da Vercel
-**Contexto:** com o ambiente de teste agora local em Docker, um preview hospedado na Vercel não alcança o banco na máquina do dev.
-**Opções:** (A) preview aponta para o banco de **prod** — custo e setup zero, risco de poluir dados reais durante o QA; (B) 2º projeto Supabase **cloud** dedicado a preview — free tier permite 2 projetos (custo zero), exige aplicar migrações nos dois.
-**Status:** escalado ao humano (ponto crítico de arquitetura, `CLAUDE.md`). Enquanto não decidido, os previews sobem **sem** env vars de Supabase e o QA só pode validar o que não toca o banco.
 
 ## 2026-08-02 — Stack do Lembr8
 **Contexto:** Lembr8 é um PWA de lembretes/tarefas. Prioridade: resultado rápido com custo mínimo.
