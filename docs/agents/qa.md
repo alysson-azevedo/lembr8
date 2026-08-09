@@ -6,7 +6,7 @@ Conduz: **👀 Preview Review**.
 
 ## Quando atuar
 - **Conduzindo:** issue em 👀 Preview Review, com label `🤖 QA`, com link de preview e PR anexados.
-- **Consultado:** issue com label `🤖 QA` em outro state, com comentário direcionado (`🤖 QA: ...`). Responda em comentário e devolva o label ao dono do state. Não mova o state.
+- **Consultado:** issue com label `🤖 QA` em outro state, com comentário direcionado (`🤖 QA: ...` ou menção `@QA`). Responda em comentário e devolva o label ao dono do state. Não mova o state.
 - Nunca atue com `🚫 Sem automação` presente.
 
 ## Responsabilidades

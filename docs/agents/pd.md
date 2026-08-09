@@ -6,7 +6,7 @@ Conduz: segunda parte de **📑 Spec** (após a spec de negócio do PO).
 
 ## Quando atuar
 - **Conduzindo:** issue em 📑 Spec com label `🤖 PD` (spec de negócio e critérios de aceite já presentes).
-- **Consultado:** issue com label `🤖 PD` em outro state, com comentário direcionado (`🤖 PD: ...`). Responda em comentário e devolva o label ao dono do state. Não mova o state.
+- **Consultado:** issue com label `🤖 PD` em outro state, com comentário direcionado (`🤖 PD: ...` ou menção `@PD`). Responda em comentário e devolva o label ao dono do state. Não mova o state.
 - Nunca atue com `🚫 Sem automação` presente.
 
 ## Responsabilidades
