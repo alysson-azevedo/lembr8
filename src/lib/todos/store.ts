@@ -1,22 +1,41 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { createLocalStorageRepository } from "./repository";
-import type { TodoItem, TodoRepository } from "./types";
+import { createLocalStorageRepository, nextListaName } from "./repository";
+import type {
+  AddOutcome,
+  Item,
+  Lista,
+  ListaIndex,
+  ListasRepository,
+} from "./types";
 
 /**
- * Ponte client-only entre a UI e a camada única de acesso aos dados (LB-3).
- * A UI consome `useTodos` / `addTodoItem` / `toggleTodoItem` — nunca acessa
- * `localStorage` ou o repositório diretamente. `useSyncExternalStore` lê o
- * storage só no cliente (após hidratação), evitando acesso ao `localStorage`
- * durante a renderização no servidor e mismatch de hidratação.
+ * Ponte client-only entre a UI e a camada única de acesso aos dados (LB-5).
+ * A UI consome `useListas` / `useLista` / `createList` / `renameList` /
+ * `addItemToLista` / `toggleItem` — nunca acessa `localStorage` ou o
+ * repositório diretamente. `useSyncExternalStore` lê o storage só no cliente
+ * (após hidratação), evitando acesso ao `localStorage` durante a renderização
+ * no servidor e mismatch de hidratação.
+ *
+ * Snapshots derivados (índice e tela da lista) são memoizados por identidade do
+ * estado: só são recalculados quando o estado muda, mantendo referências estáveis
+ * entre renders (requisito do `useSyncExternalStore`).
  */
 
 const listeners = new Set<() => void>();
-const EMPTY: TodoItem[] = [];
+const EMPTY_INDEX: ListaIndex[] = [];
+const EMPTY_ITEMS: Item[] = [];
 
-let repo: TodoRepository | null = null;
-function repoInstance(): TodoRepository {
+type ListaScreen = { lista: Lista | null; aFazer: Item[]; concluidos: Item[] };
+const EMPTY_SCREEN: ListaScreen = {
+  lista: null,
+  aFazer: EMPTY_ITEMS,
+  concluidos: EMPTY_ITEMS,
+};
+
+let repo: ListasRepository | null = null;
+function repoInstance(): ListasRepository {
   if (!repo) repo = createLocalStorageRepository();
   return repo;
 }
@@ -25,16 +44,62 @@ function notify(): void {
   for (const listener of listeners) listener();
 }
 
-/** Itens do todo em ordem de inserção, a partir da camada de acesso aos dados. */
-export function useTodos(): TodoItem[] {
+// Cache de snapshots derivados — invalidado quando o estado do repo muda.
+// O repo troca a referência interna só em mutação; usamos um contador de
+// versão para saber quando recalcular, mantendo referências estáveis entre
+// renders (requisito do `useSyncExternalStore`).
+let version = 0;
+function bumpVersion(): void {
+  version += 1;
+  indexCache = null;
+  screenCache = null;
+}
+
+let indexCache: { version: number; data: ListaIndex[] } | null = null;
+let screenCache: { version: number; listId: string; data: ListaScreen } | null =
+  null;
+
+/** Índice de listas com contagem de a-fazer (tela `/`). */
+export function useListas(): ListaIndex[] {
   return useSyncExternalStore(
-    (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
+    subscribe,
+    () => {
+      if (indexCache && indexCache.version === version) return indexCache.data;
+      const data = repoInstance().listIndex();
+      indexCache = { version, data };
+      return data;
     },
-    () => repoInstance().list(),
-    () => EMPTY,
+    () => EMPTY_INDEX,
   );
+}
+
+/** Dados da tela da lista `/listas/[id]`: lista + a-fazer + concluídos. */
+export function useLista(listId: string): ListaScreen {
+  return useSyncExternalStore(
+    subscribe,
+    () => {
+      if (
+        screenCache &&
+        screenCache.version === version &&
+        screenCache.listId === listId
+      ) {
+        return screenCache.data;
+      }
+      const lista = repoInstance().getLista(listId);
+      const items = repoInstance().listItems(listId);
+      const aFazer = items.filter((i) => !i.concluido);
+      const concluidos = items.filter((i) => i.concluido);
+      const data: ListaScreen = { lista, aFazer, concluidos };
+      screenCache = { version, listId, data };
+      return data;
+    },
+    () => EMPTY_SCREEN,
+  );
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 /** `true` após a hidratação no cliente; adia o estado vazio para evitar flash. */
@@ -46,21 +111,46 @@ export function useHydrated(): boolean {
   );
 }
 
-/** Adiciona um item e notifica a UI; `null` se o texto for vazio. */
-export function addTodoItem(texto: string): TodoItem | null {
-  const added = repoInstance().add(texto);
-  if (added) notify();
-  return added;
+/** Cria uma lista com nome `Lista N` (auto-incremento) e a retorna (para abrir). */
+export function createList(): Lista {
+  const listas = repoInstance().listListas();
+  const nome = nextListaName(listas);
+  const lista = repoInstance().createList(nome);
+  bumpVersion();
+  notify();
+  return lista;
 }
 
-/** Alterna concluído / a fazer do item e notifica a UI. */
-export function toggleTodoItem(id: string): void {
-  repoInstance().toggle(id);
+/** Renomeia uma lista e notifica a UI. */
+export function renameList(id: string, nome: string): void {
+  repoInstance().renameList(id, nome);
+  bumpVersion();
   notify();
 }
 
-/** Apenas para testes: descarta o repositório em cache e os ouvintes. */
-export function __resetTodoStoreForTests(): void {
+/** Adiciona um item a uma lista (reutilização/duplicado) e notifica a UI. */
+export function addItemToLista(
+  listId: string,
+  texto: string,
+): AddOutcome {
+  const outcome = repoInstance().addItem(listId, texto);
+  bumpVersion();
+  notify();
+  return outcome;
+}
+
+/** Alterna concluído / a fazer do item e notifica a UI. */
+export function toggleItem(id: string): void {
+  repoInstance().toggleItem(id);
+  bumpVersion();
+  notify();
+}
+
+/** Apenas para testes: descarta o repositório em cache, os ouvintes e a versão. */
+export function __resetListasStoreForTests(): void {
   repo = null;
   listeners.clear();
+  version = 0;
+  indexCache = null;
+  screenCache = null;
 }
