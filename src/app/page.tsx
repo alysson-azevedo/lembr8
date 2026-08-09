@@ -19,8 +19,8 @@ export default async function Home() {
   const { environment, commit } = getBuildInfo();
 
   return (
-    <main className="min-h-screen flex items-center justify-center">
-      <div className="w-full max-w-[28rem] p-6">
+    <main className="min-h-dvh flex items-start justify-center sm:items-center">
+      <div className="w-full max-w-[28rem] px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-semibold">Lembr8</h1>
@@ -29,7 +29,7 @@ export default async function Home() {
           <form action={logout}>
             <button
               type="submit"
-              className="rounded border border-current px-4 py-2 text-sm"
+              className="rounded border border-current px-4 py-2 text-sm min-h-11"
             >
               Sair
             </button>
