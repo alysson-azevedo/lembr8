@@ -2,6 +2,11 @@
 
 Formato: uma seção por decisão — contexto em 1-2 linhas, decisão, consequências. Mais recente no topo.
 
+## 2026-08-09 — Fluxo de branches (develop como base) + SemVer
+**Contexto:** trabalho de código precisa de linha de integração distinta de produção; versionamento precisa ser explícito.
+**Decisão:** branch padrão do repo é `develop` (ajustado no GitHub). Fluxo normal: branch `lb-<n>-slug` a partir de `develop` → PR para `develop` → deploy é a promoção `develop → main`. Bugfix emergencial (hotfix): branch a partir de `main` → PR para `main` **e** para `develop` (ou cherry-pick), mantendo `develop` em dia. Versionamento por Semantic Versioning (`MAJOR.MINOR.PATCH`); bump de versão disparado na promoção para `main`.
+**Consequências:** `main` reflete sempre a produção; `develop` é a base do trabalho normal. Detalhes do fluxo em `docs/agents/dev.md`.
+
 ## 2026-08-05 — Preview Deploys apontam para o banco de produção
 **Contexto:** com o ambiente de teste local em Docker, um preview hospedado na Vercel não alcança o banco na máquina do dev. Opções avaliadas: (A) preview aponta para o banco de **prod** — custo e setup zero, risco de poluir dados reais durante o QA; (B) 2º projeto Supabase **cloud** dedicado a preview — free tier permite 2 projetos (custo zero), exige aplicar migrações nos dois.
 **Decisão (humano, LB-1):** opção **A** — os Preview Deploys usam o banco de produção. "Não tem porque deixar complexo agora."

@@ -6,7 +6,7 @@ Conduz: **📝 Backlog** e a primeira parte de **📑 Spec**.
 
 ## Quando atuar
 - **Conduzindo:** issue com label `🤖 PO` em 📝 Backlog ou 📑 Spec.
-- **Consultado:** issue com label `🤖 PO` em outro state, com comentário direcionado (`🤖 PO: ...`). Responda em comentário e devolva o label ao dono do state. Não mova o state.
+- **Consultado:** issue com label `🤖 PO` em outro state, com comentário direcionado (`🤖 PO: ...` ou menção `@PO`). Responda em comentário e devolva o label ao dono do state. Não mova o state.
 - **Rotina periódica (agendada):** varrer issues do time sem label de responsável. Para cada uma, avaliar o contexto e decidir: reatribuir o label correto conforme o state e o histórico da issue, ou, se houver indício de problema, notificar o autor em comentário explicando o ocorrido.
 - Nunca atue com `🚫 Sem automação` presente.
 
