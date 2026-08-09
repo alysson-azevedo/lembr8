@@ -2,6 +2,11 @@
 
 Formato: uma seção por decisão — contexto em 1-2 linhas, decisão, consequências. Mais recente no topo.
 
+## 2026-08-09 — Persistência local (localStorage) para o todo MVP
+**Contexto:** a primeira feature (LB-3) é uma lista de tarefas simples (todo) com entrada inline e checkbox; o fluxo de uso (preparar em casa, usar no mercado) exige persistência entre sessões. A stack prevê Supabase para dados, mas levá-la agora traria migrações/RLS e expandiria o escopo.
+**Decisão (humano, LB-3):** persistir o todo MVP em **localStorage** no navegador (mesmo dispositivo), atrás da camada de acesso aos dados. Supabase (persistência remota, sync entre dispositivos, histórico remoto) fica para issue futura.
+**Consequências:** dados não sincronizam entre dispositivos e ficam presos ao device; histórico é local. A camada de acesso abstrai o storage para a troca por Supabase não tocar a UI. Revisitar quando sync/cross-device for necessário.
+
 ## 2026-08-09 — Fluxo de branches (develop como base) + SemVer
 **Contexto:** trabalho de código precisa de linha de integração distinta de produção; versionamento precisa ser explícito.
 **Decisão:** branch padrão do repo é `develop` (ajustado no GitHub). Fluxo normal: branch `lb-<n>-slug` a partir de `develop` → PR para `develop` → deploy é a promoção `develop → main`. Bugfix emergencial (hotfix): branch a partir de `main` → PR para `main` **e** para `develop` (ou cherry-pick), mantendo `develop` em dia. Versionamento por Semantic Versioning (`MAJOR.MINOR.PATCH`); bump de versão disparado na promoção para `main`.
