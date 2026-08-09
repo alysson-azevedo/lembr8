@@ -1,6 +1,6 @@
 # Spec de design — LB-4: UX mobile da lista de tarefas
 
-**Issue:** [LB-4](https://linear.app/alysson-azevedo/issue/LB-4/melhorar-a-experiencia-mobile-da-lista-de-tarefas-mvp) · **State:** 📑 Spec → 🚧 Dev in progress · **Tipo:** 🔍 Melhoria
+**Issue:** [LB-4](https://linear.app/alysson-azevedo/issue/LB-4/melhorar-a-experiencia-mobile-da-lista-de-tarefas-mvp) · **State:** ✅ Deployed (v0.2.1) · **Tipo:** 🔍 Melhoria
 **Base:** LB-3 (✅ Deployed), desktop-first. Arquivos: `src/app/page.tsx`, `src/app/layout.tsx`, `src/components/todos/TodoList.tsx`.
 
 Frontend/UI apenas. Sem mudança do modelo de dados (`{id, texto, concluído}`), da camada de persistência (localStorage) nem da lógica de negócio. Sem novas funcionalidades. Sem regressão em desktop.
