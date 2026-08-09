@@ -2,7 +2,7 @@
 
 App de tarefas/lembretes: o usuário registra itens a fazer e é lembrado deles (notificação Web Push, prevista para issues futuras).
 
-Primeira feature (LB-3): lista de tarefas simples (todo) com entrada inline e checkbox, persistência local (localStorage). Spec em `lb-3-todo-list.md`.
+Primeira feature (LB-3, ✅ Deployed v0.2.0): tela inicial com lista de tarefas simples (todo) — entrada inline (campo + Enter) e checkbox, persistência local (localStorage) atrás de uma camada única de acesso aos dados. Spec em `lb-3-todo-list.md`.
 
 Pontos mapeados para spec futura:
 - Tratamento de timezone do usuário nos horários de lembrete.

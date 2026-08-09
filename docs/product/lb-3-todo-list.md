@@ -1,6 +1,6 @@
 # Spec LB-3 — Lista de tarefas (todo) com entrada inline e checkbox
 
-**Issue:** [LB-3](https://linear.app/alysson-azevedo/issue/LB-3/tela-inicial-com-lista-de-lembretes-mock-busca-e-filtros-rapidos) · **State:** 📑 Spec (PO → PD) · **Persistência:** localStorage (decisão em `docs/decisions.md`).
+**Issue:** [LB-3](https://linear.app/alysson-azevedo/issue/LB-3/tela-inicial-com-lista-de-lembretes-mock-busca-e-filtros-rapidos) · **State:** ✅ Deployed (v0.2.0) · **Persistência:** localStorage (decisão em `docs/decisions.md`).
 
 ## Problema
 Depois do login (LB-2) não há para onde ir: o app não tem tela inicial. Sem ela não dá para validar navegação, layout e a experiência de registrar e consultar tarefas.
