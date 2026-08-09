@@ -1,0 +1,176 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import {
+  addItemToLista,
+  renameList,
+  toggleItem,
+  useHydrated,
+  useLista,
+} from "@/lib/todos/store";
+
+/**
+ * Tela da lista (`/listas/[id]`) — título editável (click-to-edit), subtítulo de
+ * contagem, entrada inline (LB-4) e seções a-fazer (topo) / concluídos (embaixo).
+ * Reutilização/duplicado ao adicionar via Enter. Consome só o `store`.
+ */
+export function ListaScreen({ listId }: { listId: string }) {
+  const { lista, aFazer, concluidos } = useLista(listId);
+  const hydrated = useHydrated();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // highlight transitório do item focado (duplicado ativo): scrollIntoView + some em ~1,2s.
+  useEffect(() => {
+    if (!highlightId) return;
+    const el = document.getElementById(`item-${highlightId}`);
+    el?.scrollIntoView({ block: "nearest" });
+    highlightTimer.current = setTimeout(() => setHighlightId(null), 1200);
+    return () => {
+      if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    };
+  }, [highlightId]);
+
+  useEffect(() => {
+    if (editing) titleRef.current?.focus();
+  }, [editing]);
+
+  function startEdit() {
+    if (!lista) return;
+    setDraft(lista.nome);
+    setEditing(true);
+  }
+
+  function commitEdit() {
+    if (!lista) return;
+    const nome = draft.trim();
+    if (nome && nome !== lista.nome) renameList(listId, nome);
+    setEditing(false);
+  }
+
+  function addItem() {
+    const input = inputRef.current;
+    if (!input) return;
+    const texto = input.value.trim();
+    if (!texto) return;
+    const outcome = addItemToLista(listId, texto);
+    input.value = "";
+    input.focus();
+    if (outcome.kind === "duplicate" && outcome.existingId) {
+      setHighlightId(outcome.existingId);
+    }
+  }
+
+  return (
+    <div className="mt-6">
+      {lista ? (
+        editing ? (
+          <input
+            ref={titleRef}
+            type="text"
+            value={draft}
+            aria-label="Nome da lista"
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commitEdit();
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                setEditing(false);
+              }
+            }}
+            onBlur={commitEdit}
+            className="w-full rounded border border-current/20 px-3 py-2 text-base outline-none focus:border-current/50"
+          />
+        ) : (
+          <h1
+            className="text-3xl font-semibold cursor-text"
+            onClick={startEdit}
+            title="Toque para renomear"
+          >
+            {lista.nome}
+          </h1>
+        )
+      ) : null}
+
+      {lista ? (
+        <p className="mt-2 text-muted text-base">
+          {aFazer.length} a fazer · {concluidos.length} concluídos
+        </p>
+      ) : null}
+
+      <input
+        ref={inputRef}
+        type="text"
+        placeholder="Adicione um item e pressione Enter"
+        enterKeyHint="enter"
+        aria-label="Novo item"
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            addItem();
+          }
+        }}
+        className="mt-4 w-full rounded border border-current/20 px-3 py-3 text-base outline-none focus:border-current/50"
+      />
+
+      {hydrated && aFazer.length === 0 && concluidos.length === 0 ? (
+        <p className="mt-4 text-base text-muted">
+          Nenhum item ainda. Digite acima e pressione Enter para começar.
+        </p>
+      ) : null}
+
+      <ul className="mt-4 divide-y divide-current/10">
+        {aFazer.map((item) => (
+          <li key={item.id} id={`item-${item.id}`}>
+            <label
+              className={`flex min-h-11 items-center gap-3 py-2 ${
+                highlightId === item.id ? "rounded bg-current/10" : ""
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={item.concluido}
+                onChange={() => toggleItem(item.id)}
+                className="size-5"
+                aria-label={`Marcar "${item.texto}" como concluído`}
+              />
+              <span>{item.texto}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+
+      {concluidos.length > 0 ? (
+        <div className="mt-4 border-t border-current/10 pt-4">
+          <p className="text-muted text-base">Concluídos</p>
+          <ul className="mt-2 divide-y divide-current/10">
+            {concluidos.map((item) => (
+              <li key={item.id} id={`item-${item.id}`}>
+                <label
+                  className={`flex min-h-11 items-center gap-3 py-2 ${
+                    highlightId === item.id ? "rounded bg-current/10" : ""
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={item.concluido}
+                    onChange={() => toggleItem(item.id)}
+                    className="size-5"
+                    aria-label={`Reativar "${item.texto}"`}
+                  />
+                  <span className="line-through text-muted">{item.texto}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}
