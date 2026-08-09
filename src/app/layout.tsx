@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -15,6 +15,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Lembr8",
   description: "Registre suas tarefas e seja lembrado na hora certa.",
+};
+
+// Habilita env(safe-area-inset-*) em iOS (notch / home indicator). Sem
+// user-scalable=no — acessibilidade (permite zoom do usuário). (LB-4)
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

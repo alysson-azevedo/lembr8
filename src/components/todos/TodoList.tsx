@@ -34,6 +34,7 @@ export function TodoList() {
         ref={inputRef}
         type="text"
         placeholder="Adicione um item e pressione Enter"
+        enterKeyHint="enter"
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.preventDefault();
@@ -41,28 +42,30 @@ export function TodoList() {
           }
         }}
         aria-label="Novo item"
-        className="w-full rounded border border-current/20 px-3 py-2 text-sm outline-none focus:border-current/50"
+        className="w-full rounded border border-current/20 px-3 py-3 text-base outline-none focus:border-current/50"
       />
 
       {hydrated && items.length === 0 ? (
-        <p className="mt-4 text-sm text-muted">
+        <p className="mt-4 text-base text-muted">
           Nenhum item ainda. Digite acima e pressione Enter para começar.
         </p>
       ) : null}
 
       <ul className="mt-4 divide-y divide-current/10">
         {items.map((item) => (
-          <li key={item.id} className="flex items-center gap-3 py-2">
-            <input
-              type="checkbox"
-              checked={item.concluido}
-              onChange={() => toggleTodoItem(item.id)}
-              className="size-4"
-              aria-label={`Marcar "${item.texto}" como concluído`}
-            />
-            <span className={item.concluido ? "line-through text-muted" : ""}>
-              {item.texto}
-            </span>
+          <li key={item.id}>
+            <label className="flex min-h-11 items-center gap-3 py-2">
+              <input
+                type="checkbox"
+                checked={item.concluido}
+                onChange={() => toggleTodoItem(item.id)}
+                className="size-5"
+                aria-label={`Marcar "${item.texto}" como concluído`}
+              />
+              <span className={item.concluido ? "line-through text-muted" : ""}>
+                {item.texto}
+              </span>
+            </label>
           </li>
         ))}
       </ul>
