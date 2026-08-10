@@ -2,6 +2,11 @@
 
 Formato: uma seção por decisão — contexto em 1-2 linhas, decisão, consequências. Mais recente no topo.
 
+## 2026-08-10 — Persistência local-first das listas no Supabase (sync cross-device)
+**Contexto:** LB-5 entregou múltiplas listas em localStorage. O ADR de 2026-08-09 (LB-3) dizia "Revisitar [Supabase] quando sync/cross-device for necessário". O app é PWA de lembretes usado em casa e no mercado (pode estar offline), e a camada de acesso aos dados já abstrai o storage — condição para a troca sem tocar a UI.
+**Decisão (humano, LB-6):** tornar o **Supabase** (Postgres + RLS por `auth.uid()`) a **fonte de verdade** das listas/itens, mantendo o **localStorage como cache offline** (local-first): a UI continua lendo/escrevendo no cache (funciona sem rede) e o repository sincroniza com o cloud ao reconectar (push das mudanças locais + pull, merge por `updated_at` — última escrita vence). Dados existentes no localStorage são **migrados para o cloud no 1º login** pós-upgrade (upsert por lista/item; em conflito multi-device, primeiro-device-vence / merge simples). Realtime live-sync fica fora do escopo do MVP (sync em login/reconexão é suficiente).
+**Consequências:** sync entre dispositivos habilitado; dados sobrevivem à troca/limpeza de device; RLS é a barreira entre contas. Custo: complexidade de fila de mudanças + resolução de conflito no repository. O preview aponta para o banco de prod → a migration precisa estar aplicada em prod **antes** de o preview depender dela, e nada destrutivo/em massa no preview. Acesso ao projeto cloud `tfgbkyjwzqvvklutmeln` via access token fornecido pelo humano (credencial — não versionado). Revoga o "Revisitar quando sync for necessário" do ADR de 2026-08-09.
+
 ## 2026-08-09 — Persistência local (localStorage) para o todo MVP
 **Contexto:** a primeira feature (LB-3) é uma lista de tarefas simples (todo) com entrada inline e checkbox; o fluxo de uso (preparar em casa, usar no mercado) exige persistência entre sessões. A stack prevê Supabase para dados, mas levá-la agora traria migrações/RLS e expandiria o escopo.
 **Decisão (humano, LB-3):** persistir o todo MVP em **localStorage** no navegador (mesmo dispositivo), atrás da camada de acesso aos dados. Supabase (persistência remota, sync entre dispositivos, histórico remoto) fica para issue futura.
