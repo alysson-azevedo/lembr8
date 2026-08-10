@@ -1,6 +1,6 @@
 # Spec de design — LB-5: Múltiplas listas, separação de concluídos e reutilização de itens
 
-**Issue:** [LB-5](https://linear.app/alysson-azevedo/issue/LB-5/multiplas-listas-separacao-de-concluidos-e-reutilizacao-de-itens) · **State:** 📑 Spec → 🚧 Dev in progress · **Tipo:** 🧹 Tarefa
+**Issue:** [LB-5](https://linear.app/alysson-azevedo/issue/LB-5/multiplas-listas-separacao-de-concluidos-e-reutilizacao-de-itens) · **State:** ✅ Deployed (v0.3.0) · **Tipo:** 🧹 Tarefa
 **Base:** LB-3/LB-4 (✅ Deployed). Arquivos: `src/app/page.tsx`, `src/app/layout.tsx`, `src/components/todos/TodoList.tsx`, `src/lib/todos/{types,repository,store,gate}.ts`.
 
 Frontend/UI + evolução do modelo de dados conceitual (`Lista` + `Item`), mantendo **persistência em localStorage atrás da camada única de acesso aos dados** (sem Supabase, sem nova dependência, sem mudança de stack). Sem excluir/reordenar/busca. Sem regressão em desktop nem na UX mobile da LB-4.
