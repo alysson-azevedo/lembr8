@@ -1,6 +1,6 @@
 # Spec de design técnico — LB-6: Persistência local-first no Supabase (sync cross-device)
 
-**Issue:** [LB-6](https://linear.app/alysson-azevedo/issue/LB-6/persistencia-local-first-das-listas-no-supabase-sync-cross-device) · **State:** ✅ Deployed (v0.4.0) · **Tipo:** 🧹 Tarefa
+**Issue:** [LB-6](https://linear.app/alysson-azevedo/issue/LB-6/persistencia-local-first-das-listas-no-supabase-sync-cross-device) · **State:** ✅ Deployed (v0.4.1) · **Tipo:** 🧹 Tarefa
 **Base:** LB-5 (✅ Deployed v0.3.0)
 
 Spec de **negócio** (critérios de aceite + UX): [`docs/product/lb-6-supabase-sync.md`](../lb-6-supabase-sync.md). ADRs: 2026-08-10 (arquitetura), 2026-08-05 (preview→banco de prod), 2026-08-03 (chaves publishable/secret, Supabase local em Docker).
