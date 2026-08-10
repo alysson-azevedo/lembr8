@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { getBuildInfo } from "@/lib/build-info";
 import { homeGate } from "@/lib/todos/gate";
+import { SyncController } from "@/components/sync/SyncController";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,7 @@ export default async function AppLayout({
           <p>Build: {commit}</p>
         </div>
       </div>
+      <SyncController />
     </main>
   );
 }

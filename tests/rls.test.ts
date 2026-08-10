@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 import { createPublicClient, createServiceClient } from "@/lib/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Roda contra o Supabase local em Docker. Garante que a RLS de `profiles`
@@ -64,5 +65,217 @@ describe("RLS de profiles", () => {
     const { data } = await client.from("profiles").select("id");
     expect(data).toEqual([{ id: owner.id }]);
     expect(data?.some((row) => row.id === other.id)).toBe(false);
+  });
+});
+
+// --- Helpers para lists/items (LB-6) ---
+
+async function signIn(user: { id: string; email: string }, password: string): Promise<SupabaseClient> {
+  const client = createPublicClient();
+  const { error } = await client.auth.signInWithPassword({ email: user.email, password });
+  expect(error).toBeNull();
+  return client;
+}
+
+const T1 = "2026-01-02T00:00:00.000Z";
+const T2 = "2026-01-03T00:00:00.000Z";
+
+describe("RLS de lists", () => {
+  it("usuário só vê suas próprias listas", async () => {
+    const a = await createUser();
+    const b = await createUser();
+    const pa = randomUUID();
+    const pb = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    await service.auth.admin.updateUserById(b.id, { password: pb });
+
+    const ca = await signIn(a, pa);
+    const cb = await signIn(b, pb);
+
+    const { error: ea } = await ca
+      .from("lists")
+      .insert({ id: randomUUID(), nome: "Lista A" });
+    expect(ea).toBeNull();
+    const { error: eb } = await cb
+      .from("lists")
+      .insert({ id: randomUUID(), nome: "Lista B" });
+    expect(eb).toBeNull();
+
+    const { data: da } = await ca.from("lists").select("nome");
+    expect(da?.map((r) => r.nome)).toEqual(["Lista A"]);
+    const { data: db } = await cb.from("lists").select("nome");
+    expect(db?.map((r) => r.nome)).toEqual(["Lista B"]);
+  });
+
+  it("default auth.uid() preenche o dono; insert com user_id alheio é rejeitado", async () => {
+    const a = await createUser();
+    const b = await createUser();
+    const pa = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    const ca = await signIn(a, pa);
+
+    // forjar user_id do outro usuário → policy with check rejeita.
+    const { error } = await ca
+      .from("lists")
+      .insert({ id: randomUUID(), user_id: b.id, nome: "Fraude" });
+    expect(error).not.toBeNull();
+    // e de fato não grava.
+    const { data } = await service.from("lists").select("id").eq("user_id", b.id);
+    expect(data?.length ?? 0).toBe(0);
+  });
+});
+
+describe("RLS de items (isolamento via join em list_id)", () => {
+  it("usuário só vê itens das suas listas", async () => {
+    const a = await createUser();
+    const b = await createUser();
+    const pa = randomUUID();
+    const pb = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    await service.auth.admin.updateUserById(b.id, { password: pb });
+    const ca = await signIn(a, pa);
+    const cb = await signIn(b, pb);
+
+    const la = randomUUID();
+    const lb = randomUUID();
+    await ca.from("lists").insert({ id: la, nome: "A" });
+    await cb.from("lists").insert({ id: lb, nome: "B" });
+
+    const { error: ea } = await ca
+      .from("items")
+      .insert({ id: randomUUID(), list_id: la, texto: "item A" });
+    expect(ea).toBeNull();
+
+    // A não enxerga itens de B e vice-versa.
+    const { data: da } = await ca.from("items").select("texto");
+    expect(da?.map((r) => r.texto)).toEqual(["item A"]);
+    const { data: db } = await cb.from("items").select("texto");
+    expect(db).toEqual([]);
+  });
+
+  it("insert de item com list_id alheio é rejeitado", async () => {
+    const a = await createUser();
+    const b = await createUser();
+    const pa = randomUUID();
+    const pb = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    await service.auth.admin.updateUserById(b.id, { password: pb });
+    const ca = await signIn(a, pa);
+    const cb = await signIn(b, pb);
+
+    const lb = randomUUID();
+    await cb.from("lists").insert({ id: lb, nome: "B" });
+
+    const { error } = await ca
+      .from("items")
+      .insert({ id: randomUUID(), list_id: lb, texto: "intruso" });
+    expect(error).not.toBeNull();
+  });
+});
+
+describe("RPC sync_push — merge server-side", () => {
+  it("só grava nas próprias listas (user_id = auth.uid())", async () => {
+    const a = await createUser();
+    const pa = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    const ca = await signIn(a, pa);
+
+    const id = randomUUID();
+    const { error } = await ca.rpc("sync_push", {
+      p_lists: [{ id, nome: "Lista A", created_at: T1, updated_at: T1 }],
+      p_items: [],
+    });
+    expect(error).toBeNull();
+    const { data } = await service.from("lists").select("user_id").eq("id", id).single();
+    expect(data?.user_id).toBe(a.id);
+  });
+
+  it("empate de updated_at NÃO sobrescreve (primeiro que chega vence)", async () => {
+    const a = await createUser();
+    const pa = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    const ca = await signIn(a, pa);
+
+    const id = randomUUID();
+    await ca.rpc("sync_push", {
+      p_lists: [{ id, nome: "Primeiro", created_at: T1, updated_at: T1 }],
+      p_items: [],
+    });
+    // mesma updated_at → não sobrescreve.
+    await ca.rpc("sync_push", {
+      p_lists: [{ id, nome: "Segundo", created_at: T1, updated_at: T1 }],
+      p_items: [],
+    });
+    const { data } = await service.from("lists").select("nome").eq("id", id).single();
+    expect(data?.nome).toBe("Primeiro");
+  });
+
+  it("updated_at estritamente maior sobrescreve (última escrita vence)", async () => {
+    const a = await createUser();
+    const pa = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    const ca = await signIn(a, pa);
+
+    const id = randomUUID();
+    await ca.rpc("sync_push", {
+      p_lists: [{ id, nome: "Antigo", created_at: T1, updated_at: T1 }],
+      p_items: [],
+    });
+    await ca.rpc("sync_push", {
+      p_lists: [{ id, nome: "Novo", created_at: T1, updated_at: T2 }],
+      p_items: [],
+    });
+    const { data } = await service.from("lists").select("nome").eq("id", id).single();
+    expect(data?.nome).toBe("Novo");
+  });
+
+  it("item com list_id alheio é rejeitado pela RLS do invoker", async () => {
+    const a = await createUser();
+    const b = await createUser();
+    const pa = randomUUID();
+    const pb = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    await service.auth.admin.updateUserById(b.id, { password: pb });
+    const ca = await signIn(a, pa);
+    const cb = await signIn(b, pb);
+
+    const lb = randomUUID();
+    await cb.from("lists").insert({ id: lb, nome: "B" });
+
+    const { error } = await ca.rpc("sync_push", {
+      p_lists: [],
+      p_items: [{ id: randomUUID(), list_id: lb, texto: "intruso", concluido: false, created_at: T1, updated_at: T1 }],
+    });
+    expect(error).not.toBeNull();
+  });
+
+  it("item é upsertado na própria lista do usuário", async () => {
+    const a = await createUser();
+    const pa = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    const ca = await signIn(a, pa);
+
+    const la = randomUUID();
+    const ii = randomUUID();
+    await ca.from("lists").insert({ id: la, nome: "A" });
+    const { error } = await ca.rpc("sync_push", {
+      p_lists: [],
+      p_items: [{ id: ii, list_id: la, texto: "arroz", concluido: false, created_at: T1, updated_at: T1 }],
+    });
+    expect(error).toBeNull();
+    const { data } = await service.from("items").select("texto").eq("id", ii).single();
+    expect(data?.texto).toBe("arroz");
+  });
+});
+
+describe("RLS de lists/items — anon sem acesso", () => {
+  it("anon não lê lists nem items (sem grant)", async () => {
+    const anon = createPublicClient();
+    const { data: dl, error: el } = await anon.from("lists").select("id");
+    expect(dl).toBeNull();
+    expect(el?.code).toBe("42501");
+    const { data: di, error: ei } = await anon.from("items").select("id");
+    expect(di).toBeNull();
+    expect(ei?.code).toBe("42501");
   });
 });

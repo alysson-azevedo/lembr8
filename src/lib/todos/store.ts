@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { createLocalStorageRepository, nextListaName } from "./repository";
+import { createLocalFirstRepository, nextListaName } from "./repository";
 import type {
   AddOutcome,
   Item,
@@ -36,7 +36,7 @@ const EMPTY_SCREEN: ListaScreen = {
 
 let repo: ListasRepository | null = null;
 function repoInstance(): ListasRepository {
-  if (!repo) repo = createLocalStorageRepository();
+  if (!repo) repo = createLocalFirstRepository();
   return repo;
 }
 
@@ -142,6 +142,28 @@ export function addItemToLista(
 /** Alterna concluído / a fazer do item e notifica a UI. */
 export function toggleItem(id: string): void {
   repoInstance().toggleItem(id);
+  bumpVersion();
+  notify();
+}
+
+/**
+ * Sincroniza o cache com o cloud (push dos pendentes + pull/merge por
+ * `updated_at`). Acionado pelo `SyncController` ao montar/reconectar/logar.
+ * Após o pull, invalida os snapshots para a UI refletir mudanças do cloud.
+ */
+export async function sync(): Promise<{ pushed: number; pulled: number }> {
+  const result = await repoInstance().sync();
+  bumpVersion();
+  notify();
+  return result;
+}
+
+/**
+ * Reinicia o cache para outra conta (isolamento no login/logout). Chamado pelo
+ * `SyncController` em `SIGNED_IN`/`SIGNED_OUT`. Invalida os snapshots.
+ */
+export function resetForUser(userId: string | null): void {
+  repoInstance().resetForUser(userId);
   bumpVersion();
   notify();
 }
