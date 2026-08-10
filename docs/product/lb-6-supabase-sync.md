@@ -1,6 +1,6 @@
 # Spec LB-6 — Persistência local-first das listas no Supabase (sync cross-device)
 
-**Issue:** [LB-6](https://linear.app/alysson-azevedo/issue/LB-6/persistencia-local-first-das-listas-no-supabase-sync-cross-device) · **State:** 📑 Spec · **Tipo:** 🧹 Tarefa
+**Issue:** [LB-6](https://linear.app/alysson-azevedo/issue/LB-6/persistencia-local-first-das-listas-no-supabase-sync-cross-device) · **State:** ✅ Deployed (v0.4.0) · **Tipo:** 🧹 Tarefa
 **Base:** LB-5 (✅ Deployed v0.3.0) — modelo `Lista` + `Item`, camada única de acesso aos dados, persistência em localStorage. UX mobile (LB-4) e múltiplas listas (LB-5) preservadas.
 
 **Escopo desta spec:** negócio (critérios de aceite + UX do ponto de vista do usuário). A spec de **design** (estrutura de código, schema, estratégia de fila de mudanças, formato do cache) é trabalho do 🤖 PD em `design/lb-6-*.md`.
