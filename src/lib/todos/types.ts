@@ -49,4 +49,8 @@ export interface ListasRepository {
   addItem(listId: string, texto: string): AddOutcome;
   /** Alterna concluído / a fazer do item, movendo entre as seções. */
   toggleItem(id: string): void;
+  /** Sincroniza com o cloud (push dos pendentes + pull/merge por `updated_at`). */
+  sync(): Promise<{ pushed: number; pulled: number }>;
+  /** Reinicia o cache para outra conta (isolamento no login/logout). */
+  resetForUser(userId: string | null): void;
 }
