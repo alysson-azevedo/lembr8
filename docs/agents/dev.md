@@ -14,8 +14,9 @@ Conduz: **🚧 Dev in progress** e **🚀 Ready for Deploy**.
 2. Branch `lb-<n>-slug` a partir do branch-base definido pelo fluxo abaixo (normalmente `develop`; bugfix emergencial sai da `main`).
 3. Implementar seguindo a spec — dúvida de escopo vira consulta ao PO (protocolo do `workflow.md`), não se resolve inventando.
 4. Testes automatizados cobrindo os critérios de aceite; suite completa passando.
-5. Abrir PR referenciando a issue, **apontando para o branch-base de origem** (normalmente `develop`); subir preview (processo de deploy definido no projeto); anexar links de PR e preview na issue (`orca linear attach`).
-6. Comentário-resumo (o que foi feito, como testar) → mover para 👀 Preview Review, label `🤖 QA`.
+5. Abrir PR referenciando a issue, **apontando para o branch-base de origem** (normalmente `develop`); subir preview (processo de deploy definido no projeto).
+6. Após o Preview Deploy ficar pronto na Vercel, anexar a **URL de preview da Vercel** nesta issue (`orca linear attach --current --url <preview-url> --title "Vercel preview"`). Anexar também o link da PR.
+7. Comentário-resumo (o que foi feito, como testar, URL de preview) → mover para 👀 Preview Review, label `🤖 QA`.
 
 ## Ready for Deploy
 1. Rebase/merge do branch-base se necessário; suite passando.
