@@ -15,6 +15,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Lembr8",
   description: "Registre suas tarefas e seja lembrado na hora certa.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icon",
+    apple: "/apple-icon",
+  },
 };
 
 // Habilita env(safe-area-inset-*) em iOS (notch / home indicator). Sem
