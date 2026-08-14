@@ -179,6 +179,7 @@ export function deleteItem(id: string): void {
   repoInstance().deleteItem(id);
   bumpVersion();
   notify();
+  notifyMutations();
 }
 
 /** Hard delete de uma lista em cascade (cache + tombstone local) e notifica a UI. LB-8. */
@@ -186,6 +187,7 @@ export function deleteLista(id: string): void {
   repoInstance().deleteLista(id);
   bumpVersion();
   notify();
+  notifyMutations();
 }
 
 /**
