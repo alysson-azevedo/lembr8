@@ -16,17 +16,14 @@ O dispatcher é o coordenador que varre as issues do time LB **uma por vez** e d
 3. Bind ao Run do projeto: `run_7d4c8a736a03`. Se `orca-ide orchestration task-list --run run_7d4c8a736a03 --json` falhar, recrie com `orca-ide orchestration run-create --objective "Dispatcher LB" --json` e use o novo `runId`.
 
 ## Passo 0 — Lockfile (mutex entre execuções)
-Crie/renove o lock no início e remova no fim (sempre, inclusive em erro):
+O lock é um **diretório** (`mkdir` é atômico → sem janela de race). O `--precheck` da automação já o adquire antes de iniciar o agente; em execução manual (sem precheck), o agente o cria aqui. Renove o mtime e garanta a remoção ao fim (sempre, inclusive em erro):
 ```
 LOCK=/tmp/lb-dispatcher.lock
-# staleness: se existir e for mais novo que 75 min, outro ciclo está em curso → saia
-if [ -f "$LOCK" ]; then
-  age=$(( $(date +%s) - $(stat -c %Y "$LOCK") ))
-  [ "$age" -lt 4500 ] && { echo "ciclo em curso (lock fresco)"; exit 0; }
-fi
+mkdir "$LOCK" 2>/dev/null || { echo "ciclo em curso (lock fresco)"; exit 0; }
 touch "$LOCK"
-trap 'rm -f "$LOCK"' EXIT
+trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 ```
+Staleness (75 min) é tratada pelo precheck; se encontrar um lock dir antigo manualmente, remova com `rmdir` antes de prosseguir.
 
 ## Passo 1 — Varredura
 ```
