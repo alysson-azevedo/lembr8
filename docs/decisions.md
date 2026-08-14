@@ -2,6 +2,11 @@
 
 Formato: uma seção por decisão — contexto em 1-2 linhas, decisão, consequências. Mais recente no topo.
 
+## 2026-08-14 — Exclusão hard delete sem tombstone (LB-8) — cross-device deletion deferred
+**Contexto:** LB-8 pede exclusão de itens e listas. O sync cross-device (LB-6) faz merge por `updated_at` (última escrita vence); propagar exclusão entre devices exigiria tombstone/soft-delete (marcar como deletado) e resolver "fantasmas" no pull — complexidade e schema adicionais.
+**Decisão (humano):** **hard delete** direto, **sem tombstone**, sem mudança de schema para soft-delete. A **propagação cross-device da exclusão via sync fica FORA de escopo** (limitação aceita). Escopo: excluir **itens** e **listas** (cascade).
+**Consequências:** exclusão simples e imediata (local-first + cloud), com confirmação prévia. Limitação: outro dispositivo pode não refletir a exclusão até um mecanismo futuro (tombstone/soft-delete), adiado. Sem regressão no sync de criar/marcar/renomear (LB-6).
+
 ## 2026-08-10 — Persistência local-first das listas no Supabase (sync cross-device)
 **Contexto:** LB-5 entregou múltiplas listas em localStorage. O ADR de 2026-08-09 (LB-3) dizia "Revisitar [Supabase] quando sync/cross-device for necessário". O app é PWA de lembretes usado em casa e no mercado (pode estar offline), e a camada de acesso aos dados já abstrai o storage — condição para a troca sem tocar a UI.
 **Decisão (humano, LB-6):** tornar o **Supabase** (Postgres + RLS por `auth.uid()`) a **fonte de verdade** das listas/itens, mantendo o **localStorage como cache offline** (local-first): a UI continua lendo/escrevendo no cache (funciona sem rede) e o repository sincroniza com o cloud ao reconectar (push das mudanças locais + pull, merge por `updated_at` — última escrita vence). Dados existentes no localStorage são **migrados para o cloud no 1º login** pós-upgrade (upsert por lista/item; em conflito multi-device, primeiro-device-vence / merge simples). Realtime live-sync fica fora do escopo do MVP (sync em login/reconexão é suficiente).
