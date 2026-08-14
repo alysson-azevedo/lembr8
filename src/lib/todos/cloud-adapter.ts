@@ -37,6 +37,8 @@ export interface CloudAdapter {
   push(lists: ListRecord[], items: ItemRecord[]): Promise<void>;
   /** Pull de todas as listas/itens do usuário autenticado. */
   pull(): Promise<CloudState>;
+  /** Hard delete das listas/itens pelos ids (RLS filtra por `auth.uid()`). LB-8. */
+  delete(listIds: string[], itemIds: string[]): Promise<void>;
 }
 
 /** Adapter real: cliente Supabase do browser (RLS filtra por `auth.uid()`). */
@@ -65,6 +67,21 @@ export function createSupabaseCloudAdapter(): CloudAdapter {
         lists: (listsRes.data ?? []) as ListRecord[],
         items: (itemsRes.data ?? []) as ItemRecord[],
       };
+    },
+
+    async delete(listIds, itemIds) {
+      const supabase = getBrowserSupabase();
+      // Itens primeiro (lida com órfãos e com adapters sem cascade); a lista
+      // depois derruba o restante via FK on delete cascade. RLS filtra por
+      // auth.uid() — só afeta a conta autenticada.
+      if (itemIds.length > 0) {
+        const { error } = await supabase.from("items").delete().in("id", itemIds);
+        if (error) throw error;
+      }
+      if (listIds.length > 0) {
+        const { error } = await supabase.from("lists").delete().in("id", listIds);
+        if (error) throw error;
+      }
     },
   };
 }
@@ -136,5 +153,21 @@ export class FakeCloudAdapter implements CloudAdapter {
       lists: state.lists.map((l) => ({ ...l })),
       items: state.items.map((i) => ({ ...i })),
     };
+  }
+
+  async delete(listIds: string[], itemIds: string[]): Promise<void> {
+    if (this.offline) throw new Error("offline");
+    const bucket = this.bucket();
+    const state = bucket.get("state");
+    if (!state) return; // nada no cloud: delete é no-op.
+    // Sem cascade no fake: remove listas e itens explicitamente por id.
+    if (listIds.length > 0) {
+      const rem = new Set(listIds);
+      state.lists = state.lists.filter((l) => !rem.has(l.id));
+    }
+    if (itemIds.length > 0) {
+      const rem = new Set(itemIds);
+      state.items = state.items.filter((i) => !rem.has(i.id));
+    }
   }
 }

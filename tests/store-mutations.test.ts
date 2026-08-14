@@ -50,6 +50,13 @@ function fakeRepo(): ListasRepository {
         i.id === id ? { ...i, concluido: !i.concluido } : i,
       );
     },
+    deleteItem: (id) => {
+      items = items.filter((i) => i.id !== id);
+    },
+    deleteLista: (id) => {
+      lists = lists.filter((l) => l.id !== id);
+      items = items.filter((i) => i.listId !== id);
+    },
     sync: vi.fn(async () => ({ pushed: 0, pulled: 0 })),
     resetForUser: vi.fn(),
   };
