@@ -1,6 +1,6 @@
 # Spec LB-8 — Remover itens e listas (exclusão)
 
-**Issue:** [LB-8](https://linear.app/alysson-azevedo/issue/LB-8/nao-e-possivel-remover-itens-adicionados) · **State:** 📑 Spec · **Tipo:** 🛠️ Bug
+**Issue:** [LB-8](https://linear.app/alysson-azevedo/issue/LB-8/nao-e-possivel-remover-itens-adicionados) · **State:** ✅ Deployed (v0.5.0) · **Tipo:** 🔍 Melhoria
 **Base:** LB-6 (✅ Deployed v0.4.1) — listas/itens no Supabase (fonte de verdade) + cache localStorage (local-first), sync cross-device por `updated_at`.
 
 **Escopo desta spec:** negócio (critérios de aceite + UX do ponto de vista do usuário). A spec de **design** (estrutura de código, UI do controle de exclusão, affordance de confirmação, cascade no schema/repository) é trabalho do 🤖 PD em `design/lb-8-*.md`.
