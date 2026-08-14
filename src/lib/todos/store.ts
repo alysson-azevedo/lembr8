@@ -27,6 +27,12 @@ const listeners = new Set<() => void>();
 const EMPTY_INDEX: ListaIndex[] = [];
 const EMPTY_ITEMS: Item[] = [];
 
+// Ouvintes de mutação (LB-7): disparam só em create/rename/add/toggle, usados
+// pelo SyncController para o trigger de sync pós-mutação (debounced). Separados
+// dos `listeners` de render (useSyncExternalStore) — estes também disparam em
+// sync()/resetForUser(), o que re-acionaria o trigger em loop.
+const mutationListeners = new Set<() => void>();
+
 type ListaScreen = { lista: Lista | null; aFazer: Item[]; concluidos: Item[] };
 const EMPTY_SCREEN: ListaScreen = {
   lista: null,
@@ -42,6 +48,24 @@ function repoInstance(): ListasRepository {
 
 function notify(): void {
   for (const listener of listeners) listener();
+}
+
+/**
+ * Registra `cb` chamado ao final de toda mutação (create/rename/add/toggle).
+ * Usado pelo SyncController para o trigger de sync debounced (LB-7). Não
+ * confundir com `subscribe` (snapshot da UI), que dispara também em
+ * `sync()`/`resetForUser()`. Retorna a dessubinscrição.
+ */
+export function subscribeToMutations(cb: () => void): () => void {
+  mutationListeners.add(cb);
+  return () => {
+    mutationListeners.delete(cb);
+  };
+}
+
+/** Notifica os ouvintes de mutação (create/rename/add/toggle — não sync/reset). */
+function notifyMutations(): void {
+  for (const listener of mutationListeners) listener();
 }
 
 // Cache de snapshots derivados — invalidado quando o estado do repo muda.
@@ -118,6 +142,7 @@ export function createList(): Lista {
   const lista = repoInstance().createList(nome);
   bumpVersion();
   notify();
+  notifyMutations();
   return lista;
 }
 
@@ -126,6 +151,7 @@ export function renameList(id: string, nome: string): void {
   repoInstance().renameList(id, nome);
   bumpVersion();
   notify();
+  notifyMutations();
 }
 
 /** Adiciona um item a uma lista (reutilização/duplicado) e notifica a UI. */
@@ -136,6 +162,7 @@ export function addItemToLista(
   const outcome = repoInstance().addItem(listId, texto);
   bumpVersion();
   notify();
+  notifyMutations();
   return outcome;
 }
 
@@ -144,6 +171,7 @@ export function toggleItem(id: string): void {
   repoInstance().toggleItem(id);
   bumpVersion();
   notify();
+  notifyMutations();
 }
 
 /** Hard delete de um item (cache + tombstone local) e notifica a UI. LB-8. */
@@ -186,6 +214,7 @@ export function resetForUser(userId: string | null): void {
 export function __resetListasStoreForTests(): void {
   repo = null;
   listeners.clear();
+  mutationListeners.clear();
   version = 0;
   indexCache = null;
   screenCache = null;
