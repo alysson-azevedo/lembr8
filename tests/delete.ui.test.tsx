@@ -159,13 +159,27 @@ describe("ConfirmDialog — confirmação de exclusão de item (LB-8 AC 3)", () 
   });
 });
 
-describe("ListaScreen — excluir lista do detalhe (LB-8 AC 2, 3)", () => {
-  it("botão 'Excluir lista' no rodapé; confirma e redireciona a '/'", async () => {
+describe("ListaScreen — excluir lista no menu overflow do detalhe (LB-8 AC 2, 3, rework)", () => {
+  /** Abre o menu "⋮" do cabeçalho e devolve o item "Excluir lista". */
+  async function abrirMenuExcluirLista(): Promise<HTMLElement> {
+    const menuBtn = await screen.findByLabelText("Mais opções da lista");
+    fireEvent.click(menuBtn);
+    return await screen.findByRole("menuitem", { name: "Excluir lista" });
+  }
+
+  it("menu ⋮ no cabeçalho; 'Excluir lista' é item do menu (destrutivo, red)", async () => {
     const id = newListaId();
     render(<ListaScreen listId={id} />);
-    const btn = await screen.findByText("Excluir lista");
-    expect(btn.className).toContain("text-red-600");
-    fireEvent.click(btn);
+    const item = await abrirMenuExcluirLista();
+    expect(item.tagName).toBe("BUTTON");
+    expect(item.className).toContain("text-red-600");
+    expect(item.className).toContain("min-h-11");
+  });
+
+  it("confirmar a exclusão redireciona a '/'", async () => {
+    const id = newListaId();
+    render(<ListaScreen listId={id} />);
+    fireEvent.click(await abrirMenuExcluirLista());
 
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("Excluir lista?")).toBeInTheDocument();
@@ -182,12 +196,25 @@ describe("ListaScreen — excluir lista do detalhe (LB-8 AC 2, 3)", () => {
     const id = newListaId();
     render(<ListaScreen listId={id} />);
     enter("Novo item", "arroz");
-    fireEvent.click(await screen.findByText("Excluir lista"));
+    fireEvent.click(await abrirMenuExcluirLista());
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByText("Cancelar"));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(screen.getByText("arroz")).toBeInTheDocument();
-    expect(screen.getByText("Excluir lista")).toBeInTheDocument();
+    // o menu foi fechado ao abrir o diálogo; dá para tentar de novo.
+    expect(await abrirMenuExcluirLista()).toBeInTheDocument();
+  });
+
+  it("clicar fora do menu (backdrop) o fecha sem abrir o diálogo", async () => {
+    const id = newListaId();
+    render(<ListaScreen listId={id} />);
+    fireEvent.click(await screen.findByLabelText("Mais opções da lista"));
+    expect(await screen.findByRole("menuitem", { name: "Excluir lista" })).toBeInTheDocument();
+    // backdrop: botão de tela cheia (aria-hidden) fora do menu.
+    const backdrop = document.querySelector('button[aria-hidden="true"]') as HTMLButtonElement;
+    fireEvent.click(backdrop);
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("excluir a lista remove seus itens em cascade", async () => {
@@ -195,7 +222,7 @@ describe("ListaScreen — excluir lista do detalhe (LB-8 AC 2, 3)", () => {
     render(<ListaScreen listId={id} />);
     enter("Novo item", "arroz");
     enter("Novo item", "feijão");
-    fireEvent.click(await screen.findByText("Excluir lista"));
+    fireEvent.click(await abrirMenuExcluirLista());
     fireEvent.click(within(await screen.findByRole("dialog")).getByText("Excluir lista"));
     await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/"));
 
@@ -215,47 +242,27 @@ describe("ListaScreen — deep-link para lista inexistente (LB-8 §4)", () => {
   });
 });
 
-describe("ListasIndex — affordance de excluir lista no índice (LB-8 AC 2, 3)", () => {
-  it("cada linha tem '×' com alvo ≥44px e aria-label com o nome", async () => {
+describe("ListasIndex — sem affordance de excluir lista no índice (LB-8 rework)", () => {
+  it("índice não expõe botão de excluir lista nem diálogo de confirmação", async () => {
     const { unmount } = render(<ListasIndex />);
     fireEvent.click(screen.getByText("Nova lista"));
     unmount();
     render(<ListasIndex />);
-    const btn = await screen.findByLabelText(/Excluir lista "Lista 1"/);
-    expect(btn.tagName).toBe("BUTTON");
-    expect(btn.className).toContain("min-h-11");
-    expect(btn.className).toContain("min-w-11");
+    await screen.findByText("Lista 1");
+    // a exclusão de lista é só do detalhe (menu overflow); o índice não a expõe.
+    expect(screen.queryByLabelText(/Excluir lista/)).toBeNull();
+    expect(screen.queryByText("Excluir lista")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("confirmar a exclusão no índice remove a linha", async () => {
-    const { unmount } = render(<ListasIndex />);
-    fireEvent.click(screen.getByText("Nova lista"));
-    fireEvent.click(screen.getByText("Nova lista")); // Lista 2
-    unmount();
-    render(<ListasIndex />);
-    const linha1 = await screen.findByLabelText(/Excluir lista "Lista 1"/);
-    fireEvent.click(linha1);
-    const dialog = await screen.findByRole("dialog");
-    expect(
-      within(dialog).getByText(/e todos os seus itens/),
-    ).toBeInTheDocument();
-    fireEvent.click(within(dialog).getByText("Excluir lista"));
-    await waitFor(() =>
-      expect(screen.queryByLabelText(/Excluir lista "Lista 1"/)).toBeNull(),
-    );
-    // Lista 2 permanece.
-    expect(screen.getByText("Lista 2")).toBeInTheDocument();
-  });
-
-  it("Cancelar no índice mantém a lista", async () => {
+  it("linha do índice continua navegável (link) sem botão ao lado", async () => {
     const { unmount } = render(<ListasIndex />);
     fireEvent.click(screen.getByText("Nova lista"));
     unmount();
     render(<ListasIndex />);
-    fireEvent.click(await screen.findByLabelText(/Excluir lista "Lista 1"/));
-    const dialog = await screen.findByRole("dialog");
-    fireEvent.click(within(dialog).getByText("Cancelar"));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText("Lista 1")).toBeInTheDocument();
+    const linha = await screen.findByText("Lista 1");
+    const link = linha.closest("a");
+    expect(link).not.toBeNull();
+    expect(link?.getAttribute("href")).toMatch(/^\/listas\//);
   });
 });

@@ -18,7 +18,8 @@ import type { Item, Lista } from "@/lib/todos/types";
  * Tela da lista (`/listas/[id]`) — título editável (click-to-edit), subtítulo de
  * contagem, entrada inline (LB-4) e seções a-fazer (topo) / concluídos (embaixo).
  * Reutilização/duplicado ao adicionar via Enter. Exclusão de item (botão "×")
- * e de lista ("Excluir lista" no rodapé), ambas com confirmação prévia (LB-8).
+ * e de lista (item "Excluir lista" num menu overflow "⋮" no cabeçalho), ambas
+ * com confirmação prévia (LB-8, rework: exclusão de lista só dentro do detalhe).
  * Consome só o `store`.
  */
 type Confirmacao =
@@ -36,6 +37,7 @@ export function ListaScreen({ listId }: { listId: string }) {
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null);
+  const [menuAberto, setMenuAberto] = useState(false);
 
   // Deep-link para lista inexistente/excluída: volta ao índice (LB-8 §4).
   useEffect(() => {
@@ -107,34 +109,83 @@ export function ListaScreen({ listId }: { listId: string }) {
   return (
     <div className="mt-6">
       {lista ? (
-        editing ? (
-          <input
-            ref={titleRef}
-            type="text"
-            value={draft}
-            aria-label="Nome da lista"
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                commitEdit();
-              } else if (event.key === "Escape") {
-                event.preventDefault();
-                setEditing(false);
-              }
-            }}
-            onBlur={commitEdit}
-            className="w-full rounded border border-current/20 px-3 py-2 text-base outline-none focus:border-current/50"
-          />
-        ) : (
-          <h1
-            className="text-3xl font-semibold cursor-text"
-            onClick={startEdit}
-            title="Toque para renomear"
-          >
-            {lista.nome}
-          </h1>
-        )
+        <div className="flex items-center justify-between gap-3">
+          {editing ? (
+            <input
+              ref={titleRef}
+              type="text"
+              value={draft}
+              aria-label="Nome da lista"
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitEdit();
+                } else if (event.key === "Escape") {
+                  event.preventDefault();
+                  setEditing(false);
+                }
+              }}
+              onBlur={commitEdit}
+              className="w-full rounded border border-current/20 px-3 py-2 text-base outline-none focus:border-current/50"
+            />
+          ) : (
+            <h1
+              className="text-3xl font-semibold cursor-text"
+              onClick={startEdit}
+              title="Toque para renomear"
+            >
+              {lista.nome}
+            </h1>
+          )}
+
+          {/* Menu overflow "⋮" com a ação destrutiva de excluir a lista
+              (rework LB-8: exclusão de lista só dentro do detalhe, em submenu). */}
+          {!editing ? (
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setMenuAberto((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={menuAberto}
+                aria-label="Mais opções da lista"
+                title="Mais opções"
+                className="flex min-h-11 min-w-11 items-center justify-center text-2xl text-muted hover:text-foreground"
+              >
+                ⋮
+              </button>
+              {menuAberto ? (
+                <>
+                  {/* Backdrop invisível: clicar fora fecha o menu. */}
+                  <button
+                    type="button"
+                    aria-hidden="true"
+                    tabIndex={-1}
+                    onClick={() => setMenuAberto(false)}
+                    className="fixed inset-0 z-10 cursor-default"
+                  />
+                  <div
+                    role="menu"
+                    aria-label="Opções da lista"
+                    className="absolute right-0 top-full z-20 mt-1 min-w-44 rounded border border-current/20 bg-background py-1"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuAberto(false);
+                        setConfirmacao({ tipo: "lista", alvo: lista });
+                      }}
+                      className="flex min-h-11 w-full items-center px-3 text-base text-red-600 dark:text-red-400"
+                    >
+                      Excluir lista
+                    </button>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
       {lista ? (
@@ -227,16 +278,6 @@ export function ListaScreen({ listId }: { listId: string }) {
             ))}
           </ul>
         </div>
-      ) : null}
-
-      {lista ? (
-        <button
-          type="button"
-          onClick={() => setConfirmacao({ tipo: "lista", alvo: lista })}
-          className="mt-8 min-h-11 w-full rounded border border-current/20 px-3 py-2 text-base text-red-600 dark:text-red-400"
-        >
-          Excluir lista
-        </button>
       ) : null}
 
       <ConfirmDialog

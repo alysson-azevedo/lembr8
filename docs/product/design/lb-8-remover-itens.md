@@ -54,46 +54,64 @@ Cada item — **a-fazer e concluídos** — expõe um botão **"×"** à direita
 
 ## 2. Affordance de exclusão de lista
 
-Exclusão de lista exposta em **dois** lugares, ambos abrindo o mesmo `ConfirmDialog` de lista:
+Exclusão de lista exposta em **um único lugar** — o detalhe da lista — como **item de um menu overflow** (rework LB-8: a exclusão de lista **não** aparece no índice).
 
 ### 2.1 Índice (`/`) — `ListasIndex`
-A linha da lista hoje é um `<Link>` que ocupa toda a largura. Adicionar o "×" **fora** do `<Link>` (clicar em "×" não navega):
+O índice **não** expõe exclusão de lista. A linha da lista permanece um `<Link>` que ocupa toda a largura (nome + contagem de a-fazer), sem botão "×" nem qualquer affordance de excluir:
 
 ```
-<li className="flex items-center gap-4">
-  <Link href={`/listas/${lista.id}`} className="flex min-h-11 flex-1 items-center justify-between gap-4 text-base">
+<li>
+  <Link href={`/listas/${lista.id}`} className="flex min-h-11 items-center justify-between gap-4 text-base">
     <span>{lista.nome}</span>
     <span className="text-muted text-base">{lista.aFazer} a fazer</span>
   </Link>
-  <button
-    type="button"
-    onClick={() => abrirConfirmacaoLista(lista)}
-    className="flex min-h-11 min-w-11 items-center justify-center text-muted hover:text-foreground"
-    aria-label={`Excluir lista "${lista.nome}"`}
-    title="Excluir lista"
-  >
-    ✕
-  </button>
 </li>
 ```
 
+O `ListasIndex` não importa `deleteLista` nem `ConfirmDialog` — a ação é toda do detalhe.
+
 ### 2.2 Detalhe (`/listas/[id]`) — `ListaScreen`
-Botão discreto no rodapé da tela da lista (o usuário pode estar dentro da lista obsoleta e querer descartá-la sem voltar ao índice):
+A ação de excluir a lista vive num **menu overflow "⋮"** no cabeçalho, ao lado do título (não mais um botão solto no rodapé). O "⋮" abre um menu cujo único item é "Excluir lista":
 
 ```
-<button
-  type="button"
-  onClick={() => abrirConfirmacaoLista(lista)}
-  className="mt-8 min-h-11 w-full rounded border border-current/20 px-3 py-2 text-base text-red-600 dark:text-red-400"
->
-  Excluir lista
-</button>
+<div className="relative shrink-0">
+  <button
+    type="button"
+    onClick={() => setMenuAberto((v) => !v)}
+    aria-haspopup="menu"
+    aria-expanded={menuAberto}
+    aria-label="Mais opções da lista"
+    title="Mais opções"
+    className="flex min-h-11 min-w-11 items-center justify-center text-2xl text-muted hover:text-foreground"
+  >
+    ⋮
+  </button>
+  {menuAberto ? (
+    <>
+      {/* backdrop invisível: clicar fora fecha o menu */}
+      <button type="button" aria-hidden="true" tabIndex={-1}
+        onClick={() => setMenuAberto(false)}
+        className="fixed inset-0 z-10 cursor-default" />
+      <div role="menu" aria-label="Opções da lista"
+        className="absolute right-0 top-full z-20 mt-1 min-w-44 rounded border border-current/20 bg-background py-1">
+        <button type="button" role="menuitem"
+          onClick={() => { setMenuAberto(false); setConfirmacao({ tipo: "lista", alvo: lista }); }}
+          className="flex min-h-11 w-full items-center px-3 text-base text-red-600 dark:text-red-400">
+          Excluir lista
+        </button>
+      </div>
+    </>
+  ) : null}
+</div>
 ```
 
-- Renderizado só quando `lista` existe (após hidratação).
-- **Trade-off (mínimo):** duas affordances (índice + detalhe) vs. uma só. Ambas atendem o AC 2; o caso de uso de referência cita o índice, mas o detalhe é onde o usuário está quando a lista está aberta e obsoleta. Mesmo diálogo, baixo custo. Se o humano preferir uma só, manter o "×" do índice (primário).
+- Renderizado só quando `lista` existe (após hidratação) e **não** durante a edição do título (o cabeçalho em edição ocupa a largura toda com o input).
+- Alvo do "⋮": `min-h-11 min-w-11` (44px, LB-4).
+- `⋮` é caractere Unicode (sem ícone/lib), `text-2xl`.
+- O menu é inline (sem nova dependência). Um backdrop `<button>` de tela cheia fecha o menu ao clicar fora; o item "Excluir lista" fecha o menu e abre o `ConfirmDialog` de lista (§3).
+- Item em vermelho (`text-red-600 dark:text-red-400`) sinaliza a destrutividade já no menu, antes do diálogo.
 
-**Comportamento:** confirmar → `deleteLista(lista.id)`; **navegar para `/`** (índice) — a lista atual deixa de existir e o `useLista` retornaria `lista: null` (ver §4).
+**Comportamento:** confirmar no diálogo → `deleteLista(lista.id)`; **navegar para `/`** (índice) — a lista atual deixa de existir e o `useLista` retornaria `lista: null` (ver §4). Cancelar/Esc fecha só o diálogo (o menu já foi fechado ao abrir o diálogo).
 
 ---
 
@@ -122,7 +140,7 @@ type ConfirmDialogProps = {
 - Focus trap simples: `onKeyDown` tab entre Cancelar↔Confirmar (2 botões); `Tab`/`Shift+Tab` não sai do diálogo.
 - Botões lado a lado (`flex gap-3`), ambos `min-h-11`, `flex-1`. Confirm recebe `text-red-600 dark:text-red-400 border-current/20` quando `destructive`.
 
-**Uso em `ListaScreen` (item e lista) e `ListasIndex` (lista):** estado local `confirmacao: { tipo: "item"|"lista"; alvo: ... } | null`. O componente `ListaScreen` guarda confirmação de item e de lista; `ListasIndex` guarda a de lista. `open = confirmacao !== null`.
+**Uso em `ListaScreen` (item e lista):** estado local `confirmacao: { tipo: "item"|"lista"; alvo: ... } | null`. O componente `ListaScreen` guarda a confirmação de item e de lista; o `ListasIndex` **não** usa `ConfirmDialog` (a exclusão de lista não é exposta no índice — rework LB-8). `open = confirmacao !== null`.
 
 **Textos (fixos nesta spec):**
 
@@ -138,8 +156,7 @@ A descrição de lista **deixa claro que os itens vão junto** (AC 3). Cancelar 
 ## 4. Estados vazios e navegação pós-exclusão
 
 - **Excluir item:** o item some da seção correspondente. Se era o último item, a tela mostra o estado vazio existente ("Nenhum item ainda..."). Sem mudança.
-- **Excluir lista (do detalhe):** após `deleteLista(id)`, `router.replace("/")` — o usuário volta ao índice; a lista some do índice. Se restar zero listas, o índice mostra o estado vazio existente ("Nenhuma lista ainda...").
-- **Excluir lista (do índice):** a linha some; o usuário permanece no índice.
+- **Excluir lista:** só é possível a partir do detalhe (menu overflow). Após `deleteLista(id)`, `router.replace("/")` — o usuário volta ao índice; a lista some do índice. Se restar zero listas, o índice mostra o estado vazio existente ("Nenhuma lista ainda..."). (O índice não tem affordance de exclusão — rework LB-8.)
 - **Deep-link para lista inexistente** (`/listas/[id]` de id que não existe / foi excluído): após hidratação, se `lista === null`, `ListaScreen` redireciona a `/` (`router.replace("/")`) em vez de renderizar só o input vazio (comportamento atual incompleto). Mínimo: um `useEffect` que, dado `hydrated && !lista`, faz `router.replace("/")`.
 
 Estados de **carregamento/erro** não se aplicam: a exclusão é local-first e síncrona no cache — responde na hora, sem spinner, sem mensagem de erro (AC 4). Falha de rede no hard delete do cloud é silenciosa (retry no próximo sync).
@@ -259,7 +276,7 @@ Nova migration `supabase/migrations/20260814120000_delete_lists_items.sql`:
 **UI (jsdom):**
 - "×" visível em a-fazer e concluídos; alvo ≥44px (`min-h-11 min-w-11`); `aria-label` correto.
 - `ConfirmDialog`: confirmar executa a exclusão; Cancelar/Esc/overlay abortam sem excluir; foco inicial no Cancelar.
-- Excluir lista do detalhe redireciona a `/`; excluir do índice remove a linha.
+- Excluir lista (menu overflow no detalhe) redireciona a `/`; o índice **não** expõe affordance de excluir lista (rework LB-8).
 - UI continua isolada do storage: nenhum import de `supabase` ou `localStorage` nos componentes; só `store`.
 
 **Sem regressão:** fluxos de criar/marcar/renomear (LB-6), múltiplas listas (LB-5) e UX mobile (LB-4) preservados em desktop e mobile (AC 7).
@@ -277,7 +294,7 @@ A **propagação cross-device da exclusão via sync não é garantida** (ADR 202
 | Decisão | Escolha |
 | --- | --- |
 | Affordance de excluir item | Botão "×" à direita de cada item (a-fazer + concluídos), fora da `<label>`, alvo 44px |
-| Affordance de excluir lista | "×" na linha do índice + botão "Excluir lista" no detalhe (mesmo diálogo) |
+| Affordance de excluir lista | Item "Excluir lista" num menu overflow "⋮" no cabeçalho do detalhe; **sem** affordance no índice (rework LB-8) |
 | Confirmação | `ConfirmDialog` reutilizável, inline, foco no Cancelar, Esc/overlay cancelam; texto de lista avisa itens junto |
 | Cascade | FK `on delete cascade` no cloud + remoção explícita local (lista + itens) |
 | Hard delete no cloud | `adapter.delete(ids)` no push; grants + policies de delete (RLS por `auth.uid()`) |
