@@ -2,6 +2,11 @@
 
 Formato: uma seção por decisão — contexto em 1-2 linhas, decisão, consequências. Mais recente no topo.
 
+## 2026-08-14 — Tombstone local no cache para exclusão offline (LB-8)
+**Contexto:** com hard delete sem tombstone no schema (ADR acima), excluir um item/lista **offline** o remove do cache local mas o cloud ainda o tem; ao reconectar, o sync (pull + merge por `updated_at`, que mantém registros só-cloud) re-importaria o registro, fazendo o item excluído "ressuscitar" no **mesmo** device que o apagou — regressão inaceitável.
+**Decisão (humano, LB-8):** manter uma lista **`deletedIds`** (`{ lists: string[]; items: string[] }`) **no cache local** (localStorage, formato v4 — **sem** mudança de schema do cloud, sem soft-delete no Supabase). Ao excluir, remove do cache e adiciona o id a `deletedIds`. No **push** do sync, executa hard `DELETE` no cloud para esses ids e os limpa em sucesso. No **pull/merge**, o merge é **upsert-only**: nunca remove registro local porque sumiu do cloud, e **filtra ids em `deletedIds`** ao reimportar do cloud.
+**Consequências:** a exclusão persiste no device de origem após o sync (sem ressuscitação); a limitação cross-device (outro device não reflete a exclusão até excluí-la lá) permanece e é aceita; sem mudança de schema do cloud; custo é estado local extra (lista de ids excluídos) + migração de cache v3→v4. O sync de criar/marcar/renomear (LB-6) não é afetado. Detalhes de implementação em `docs/product/design/lb-8-remover-itens.md`.
+
 ## 2026-08-14 — Exclusão hard delete sem tombstone (LB-8) — cross-device deletion deferred
 **Contexto:** LB-8 pede exclusão de itens e listas. O sync cross-device (LB-6) faz merge por `updated_at` (última escrita vence); propagar exclusão entre devices exigiria tombstone/soft-delete (marcar como deletado) e resolver "fantasmas" no pull — complexidade e schema adicionais.
 **Decisão (humano):** **hard delete** direto, **sem tombstone**, sem mudança de schema para soft-delete. A **propagação cross-device da exclusão via sync fica FORA de escopo** (limitação aceita). Escopo: excluir **itens** e **listas** (cascade).
