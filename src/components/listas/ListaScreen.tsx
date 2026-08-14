@@ -176,9 +176,9 @@ export function ListaScreen({ listId }: { listId: string }) {
                         setMenuAberto(false);
                         setConfirmacao({ tipo: "lista", alvo: lista });
                       }}
-                      className="flex min-h-11 w-full items-center px-3 text-base text-red-600 dark:text-red-400"
+                      className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-red-600 dark:text-red-400"
                     >
-                      Excluir lista
+                      <span aria-hidden="true">🗑️</span> Excluir lista
                     </button>
                   </div>
                 </>

@@ -167,13 +167,16 @@ describe("ListaScreen — excluir lista no menu overflow do detalhe (LB-8 AC 2, 
     return await screen.findByRole("menuitem", { name: "Excluir lista" });
   }
 
-  it("menu ⋮ no cabeçalho; 'Excluir lista' é item do menu (destrutivo, red)", async () => {
+  it("menu ⋮ no cabeçalho; '🗑️ Excluir lista' é item do menu (destrutivo, red, com ícone de lixeira)", async () => {
     const id = newListaId();
     render(<ListaScreen listId={id} />);
     const item = await abrirMenuExcluirLista();
     expect(item.tagName).toBe("BUTTON");
     expect(item.className).toContain("text-red-600");
     expect(item.className).toContain("min-h-11");
+    // rework: ícone de lixeira precede o texto (emoji fora do nome acessível).
+    expect(item).toHaveTextContent(/🗑️\s*Excluir lista/);
+    expect(item.querySelector("span[aria-hidden='true']")).toHaveTextContent("🗑️");
   });
 
   it("confirmar a exclusão redireciona a '/'", async () => {

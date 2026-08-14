@@ -71,7 +71,7 @@ O índice **não** expõe exclusão de lista. A linha da lista permanece um `<Li
 O `ListasIndex` não importa `deleteLista` nem `ConfirmDialog` — a ação é toda do detalhe.
 
 ### 2.2 Detalhe (`/listas/[id]`) — `ListaScreen`
-A ação de excluir a lista vive num **menu overflow "⋮"** no cabeçalho, ao lado do título (não mais um botão solto no rodapé). O "⋮" abre um menu cujo único item é "Excluir lista":
+A ação de excluir a lista vive num **menu overflow "⋮"** no cabeçalho, ao lado do título (não mais um botão solto no rodapé). O "⋮" abre um menu cujo único item é "🗑️ Excluir lista" (ícone de lixeira precede o texto, fora do nome acessível):
 
 ```
 <div className="relative shrink-0">
@@ -96,8 +96,8 @@ A ação de excluir a lista vive num **menu overflow "⋮"** no cabeçalho, ao l
         className="absolute right-0 top-full z-20 mt-1 min-w-44 rounded border border-current/20 bg-background py-1">
         <button type="button" role="menuitem"
           onClick={() => { setMenuAberto(false); setConfirmacao({ tipo: "lista", alvo: lista }); }}
-          className="flex min-h-11 w-full items-center px-3 text-base text-red-600 dark:text-red-400">
-          Excluir lista
+          className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-red-600 dark:text-red-400">
+          <span aria-hidden="true">🗑️</span> Excluir lista
         </button>
       </div>
     </>
@@ -108,8 +108,8 @@ A ação de excluir a lista vive num **menu overflow "⋮"** no cabeçalho, ao l
 - Renderizado só quando `lista` existe (após hidratação) e **não** durante a edição do título (o cabeçalho em edição ocupa a largura toda com o input).
 - Alvo do "⋮": `min-h-11 min-w-11` (44px, LB-4).
 - `⋮` é caractere Unicode (sem ícone/lib), `text-2xl`.
-- O menu é inline (sem nova dependência). Um backdrop `<button>` de tela cheia fecha o menu ao clicar fora; o item "Excluir lista" fecha o menu e abre o `ConfirmDialog` de lista (§3).
-- Item em vermelho (`text-red-600 dark:text-red-400`) sinaliza a destrutividade já no menu, antes do diálogo.
+- O menu é inline (sem nova dependência). Um backdrop `<button>` de tela cheia fecha o menu ao clicar fora; o item "🗑️ Excluir lista" fecha o menu e abre o `ConfirmDialog` de lista (§3).
+- Item em vermelho (`text-red-600 dark:text-red-400`) sinaliza a destrutividade já no menu, antes do diálogo. O ícone `🗑️` (emoji Unicode, sem lib) é meramente visual — fica num `<span aria-hidden="true">` para não entrar no nome acessível do `menuitem` (leitor de tela continua anunciando "Excluir lista"); `gap-2` separa ícone e texto.
 
 **Comportamento:** confirmar no diálogo → `deleteLista(lista.id)`; **navegar para `/`** (índice) — a lista atual deixa de existir e o `useLista` retornaria `lista: null` (ver §4). Cancelar/Esc fecha só o diálogo (o menu já foi fechado ao abrir o diálogo).
 
@@ -294,7 +294,7 @@ A **propagação cross-device da exclusão via sync não é garantida** (ADR 202
 | Decisão | Escolha |
 | --- | --- |
 | Affordance de excluir item | Botão "×" à direita de cada item (a-fazer + concluídos), fora da `<label>`, alvo 44px |
-| Affordance de excluir lista | Item "Excluir lista" num menu overflow "⋮" no cabeçalho do detalhe; **sem** affordance no índice (rework LB-8) |
+| Affordance de excluir lista | Item "🗑️ Excluir lista" num menu overflow "⋮" no cabeçalho do detalhe; **sem** affordance no índice (rework LB-8) |
 | Confirmação | `ConfirmDialog` reutilizável, inline, foco no Cancelar, Esc/overlay cancelam; texto de lista avisa itens junto |
 | Cascade | FK `on delete cascade` no cloud + remoção explícita local (lista + itens) |
 | Hard delete no cloud | `adapter.delete(ids)` no push; grants + policies de delete (RLS por `auth.uid()`) |
