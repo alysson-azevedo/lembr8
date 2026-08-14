@@ -279,3 +279,116 @@ describe("RLS de lists/items — anon sem acesso", () => {
     expect(ei?.code).toBe("42501");
   });
 });
+
+describe("RLS de delete — hard delete só do dono (LB-8 AC 6)", () => {
+  it("usuário deleta sua própria lista e ela some", async () => {
+    const a = await createUser();
+    const pa = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    const ca = await signIn(a, pa);
+
+    const id = randomUUID();
+    const { error: ins } = await ca
+      .from("lists")
+      .insert({ id, nome: "Para deletar" });
+    expect(ins).toBeNull();
+
+    const { error } = await ca.from("lists").delete().eq("id", id);
+    expect(error).toBeNull();
+    const { data } = await service.from("lists").select("id").eq("id", id);
+    expect(data).toEqual([]);
+  });
+
+  it("usuário NÃO deleta lista de outra conta (RLS rejeita / 0 linhas)", async () => {
+    const a = await createUser();
+    const b = await createUser();
+    const pa = randomUUID();
+    const pb = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    await service.auth.admin.updateUserById(b.id, { password: pb });
+    const ca = await signIn(a, pa);
+    const cb = await signIn(b, pb);
+
+    const lb = randomUUID();
+    const { error: ins } = await cb.from("lists").insert({ id: lb, nome: "Do B" });
+    expect(ins).toBeNull();
+
+    // A tenta deletar a lista de B: a RLS bloqueia (0 linhas afetadas).
+    const { error, count } = await ca
+      .from("lists")
+      .delete()
+      .eq("id", lb)
+      .select("id");
+    expect(error).toBeNull();
+    expect(count ?? 0).toBe(0);
+    // a lista de B permanece.
+    const { data } = await service.from("lists").select("id").eq("id", lb).single();
+    expect(data?.id).toBe(lb);
+  });
+
+  it("usuário deleta seu próprio item e ele some", async () => {
+    const a = await createUser();
+    const pa = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    const ca = await signIn(a, pa);
+
+    const la = randomUUID();
+    const ii = randomUUID();
+    await ca.from("lists").insert({ id: la, nome: "A" });
+    await ca
+      .from("items")
+      .insert({ id: ii, list_id: la, texto: "item A" });
+
+    const { error } = await ca.from("items").delete().eq("id", ii);
+    expect(error).toBeNull();
+    const { data } = await service.from("items").select("id").eq("id", ii);
+    expect(data).toEqual([]);
+  });
+
+  it("usuário NÃO deleta item de lista de outra conta (RLS rejeita / 0 linhas)", async () => {
+    const a = await createUser();
+    const b = await createUser();
+    const pa = randomUUID();
+    const pb = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    await service.auth.admin.updateUserById(b.id, { password: pb });
+    const ca = await signIn(a, pa);
+    const cb = await signIn(b, pb);
+
+    const lb = randomUUID();
+    const ib = randomUUID();
+    await cb.from("lists").insert({ id: lb, nome: "B" });
+    await cb
+      .from("items")
+      .insert({ id: ib, list_id: lb, texto: "item B" });
+
+    // A tenta deletar o item de B: bloqueado pela RLS do join em list_id.
+    const { error, count } = await ca
+      .from("items")
+      .delete()
+      .eq("id", ib)
+      .select("id");
+    expect(error).toBeNull();
+    expect(count ?? 0).toBe(0);
+    const { data } = await service.from("items").select("id").eq("id", ib).single();
+    expect(data?.id).toBe(ib);
+  });
+
+  it("deletar a lista derruba os itens em cascade (FK on delete cascade)", async () => {
+    const a = await createUser();
+    const pa = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    const ca = await signIn(a, pa);
+
+    const la = randomUUID();
+    const ii = randomUUID();
+    await ca.from("lists").insert({ id: la, nome: "A" });
+    await ca
+      .from("items")
+      .insert({ id: ii, list_id: la, texto: "arroz" });
+
+    await ca.from("lists").delete().eq("id", la);
+    const { data } = await service.from("items").select("id").eq("id", ii);
+    expect(data).toEqual([]);
+  });
+});

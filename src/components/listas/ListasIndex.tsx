@@ -6,7 +6,9 @@ import { createList, useHydrated, useListas } from "@/lib/todos/store";
 
 /**
  * Índice de listas (`/`) — botão "Nova lista" (1 toque cria `Lista N` e abre) +
- * lista de listas com contagem de a-fazer. Consome só o `store` (camada única de
+ * lista de listas com contagem de a-fazer. A exclusão de lista NÃO é exposta
+ * aqui (rework LB-8): excluir lista é uma ação do detalhe da lista, em submenu
+ * de um menu overflow na `ListaScreen`. Consome só o `store` (camada única de
  * acesso aos dados).
  */
 export function ListasIndex() {
