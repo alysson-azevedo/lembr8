@@ -7,6 +7,7 @@ import type {
 } from "./cloud-adapter";
 import type {
   AddOutcome,
+  DeletedIds,
   Item,
   Lista,
   ListasRepository,
@@ -42,6 +43,7 @@ const STORAGE_KEY = "lembr8.data";
 const LEGACY_KEY = "lembr8.todos";
 const V2 = 2;
 const V3 = 3;
+const V4 = 4;
 
 /** Registro de lista no cache local (timestamp para o merge). */
 type ListRecordLocal = Lista & { createdAt: string; updatedAt: string };
@@ -56,8 +58,8 @@ export type PendingOp =
   | { kind: "list"; id: string }
   | { kind: "item"; id: string };
 
-/** Estado do cache v3. */
-export type CacheState = {
+/** Estado do cache v3 (LB-6), sem tombstone local. */
+export type CacheStateV3 = {
   version: 3;
   userId: string | null;
   lists: ListRecordLocal[];
@@ -65,6 +67,23 @@ export type CacheState = {
   pending: PendingOp[];
   migrated: boolean;
   lastSyncAt: string | null;
+};
+
+/**
+ * Estado do cache v4 (LB-8): adiciona `deletedIds` (tombstone local) ao v3,
+ * sem mudança de schema do cloud. Ao excluir, remove do cache e adiciona o id
+ * a `deletedIds`; no push do sync executa hard `DELETE` no cloud e os limpa; no
+ * pull/merge (upsert-only) filtra esses ids ao reimportar do cloud.
+ */
+export type CacheState = {
+  version: 4;
+  userId: string | null;
+  lists: ListRecordLocal[];
+  items: ItemRecordLocal[];
+  pending: PendingOp[];
+  migrated: boolean;
+  lastSyncAt: string | null;
+  deletedIds: DeletedIds;
 };
 
 /** Próximo nome padrão `Lista N`: maior `^Lista (\d+)$` + 1, mínimo 1. */
@@ -171,6 +190,50 @@ export function toggleItemLista(items: Item[], id: string): Item[] {
   return [...outras, ...insereNoFimDeAFazer(daLista, atualizado)];
 }
 
+/** Remove duplicatas preservando a ordem da primeira ocorrência. */
+function dedup(ids: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const id of ids) if (!seen.has(id)) {
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
+/**
+ * Hard delete de um item: devolve o array sem o item (por id), preservando a
+ * ordem dos demais. Não muta a entrada. (LB-8, §5.2.)
+ */
+export function deleteItemFromLista<T extends Item>(items: T[], id: string): T[] {
+  if (!items.some((i) => i.id === id)) return items; // no-op: mesma referência.
+  return items.filter((i) => i.id !== id);
+}
+
+/**
+ * Hard delete de uma lista em cascade: remove a lista e todos os itens cujo
+ * `listId === listId`, preservando as demais listas/itens. Devolve os ids a
+ * marcar no tombstone local (`{ lists: [listId], items: [...itemIds] }`). Não
+ * muta a entrada. (LB-8, §5.2.)
+ */
+export function deleteListaCascade(
+  state: { lists: ListRecordLocal[]; items: ItemRecordLocal[] },
+  listId: string,
+): {
+  lists: ListRecordLocal[];
+  items: ItemRecordLocal[];
+  deletedIds: DeletedIds;
+} {
+  const deletedItemIds = state.items
+    .filter((i) => i.listId === listId)
+    .map((i) => i.id);
+  return {
+    lists: state.lists.filter((l) => l.id !== listId),
+    items: state.items.filter((i) => i.listId !== listId),
+    deletedIds: { lists: [listId], items: deletedItemIds },
+  };
+}
+
 /**
  * Migra o storage do MVP (`lembr8.todos`, `[{id,texto,concluido}]`) para o
  * formato v2: cria `Lista 1` com os itens existentes, preservando `concluido` e
@@ -238,6 +301,16 @@ function isPendingOp(value: unknown): value is PendingOp {
   );
 }
 
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((x) => typeof x === "string");
+}
+
+function isDeletedIds(value: unknown): value is DeletedIds {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return isStringArray(v.lists) && isStringArray(v.items);
+}
+
 // --- parsing / migração de formato ---
 
 function parseV2(raw: string | null): AppStateV2 | null {
@@ -254,7 +327,7 @@ function parseV2(raw: string | null): AppStateV2 | null {
   }
 }
 
-function parseV3(raw: string | null): CacheState | null {
+function parseV3(raw: string | null): CacheStateV3 | null {
   if (!raw) return null;
   try {
     const data = JSON.parse(raw);
@@ -268,6 +341,27 @@ function parseV3(raw: string | null): CacheState | null {
       pending: Array.isArray(data.pending) ? data.pending.filter(isPendingOp) : [],
       migrated: data.migrated === true,
       lastSyncAt: typeof data.lastSyncAt === "string" ? data.lastSyncAt : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function parseV4(raw: string | null): CacheState | null {
+  if (!raw) return null;
+  try {
+    const data = JSON.parse(raw);
+    if (typeof data !== "object" || data === null || data.version !== V4)
+      return null;
+    return {
+      version: V4,
+      userId: typeof data.userId === "string" ? data.userId : null,
+      lists: Array.isArray(data.lists) ? data.lists.filter(isListRecordLocal) : [],
+      items: Array.isArray(data.items) ? data.items.filter(isItemRecordLocal) : [],
+      pending: Array.isArray(data.pending) ? data.pending.filter(isPendingOp) : [],
+      migrated: data.migrated === true,
+      lastSyncAt: typeof data.lastSyncAt === "string" ? data.lastSyncAt : null,
+      deletedIds: isDeletedIds(data.deletedIds) ? data.deletedIds : { lists: [], items: [] },
     };
   } catch {
     return null;
@@ -298,7 +392,7 @@ function parseLegacy(raw: string | null): {
 }
 
 /** Normaliza um estado v2 (LB-5) para v3, preservando ids/registros. */
-export function migrateV2toV3(v2: AppStateV2, now: string): CacheState {
+export function migrateV2toV3(v2: AppStateV2, now: string): CacheStateV3 {
   return {
     version: V3,
     userId: null,
@@ -310,25 +404,47 @@ export function migrateV2toV3(v2: AppStateV2, now: string): CacheState {
   };
 }
 
+/**
+ * Migra o cache v3 (LB-6) para v4 (LB-8): adiciona `deletedIds` vazio,
+ * preservando lists/items/pending/migrated/lastSyncAt/userId. Não é mudança de
+ * schema do cloud — é o cache localStorage (o ADR proíbe tombstone no schema do
+ * Supabase, não no cache).
+ */
+export function migrateV3toV4(v3: CacheStateV3): CacheState {
+  return { ...v3, version: V4, deletedIds: { lists: [], items: [] } };
+}
+
 // --- merge por updated_at (lógica pura, testável) ---
 
 /**
  * Funde o cache local com o estado vindo do cloud, por `id`, última escrita
  * vence (`updated_at` estritamente maior sobrescreve; empate mantém o local).
- * Registros só no cloud são adicionados; só locais são mantidos. Mantém a
- * ordenação da LB-5 (por lista: a-fazer ++ concluídos). Recomputa `pending`
- * com os registros locais ainda mais recentes que o cloud (ou ausentes no
- * cloud) — a versão local mais recente sobe no próximo push.
+ * **Upsert-only (LB-8):** nunca remove registro local porque sumiu do cloud —
+ * registros só locais são mantidos. Registros só no cloud são adicionados,
+ * **exceto** ids presentes em `local.deletedIds` (tombstone local): esses não
+ * são reimportados, evitando ressuscitação do item excluído no device de
+ * origem (ADR 2026-08-14). Mantém a ordenação da LB-5 (por lista: a-fazer ++
+ * concluídos). Recomputa `pending` com os registros locais ainda mais recentes
+ * que o cloud (ou ausentes no cloud) — a versão local mais recente sobe no
+ * próximo push.
  */
 export function mergeCache(
-  local: { lists: ListRecordLocal[]; items: ItemRecordLocal[]; pending: PendingOp[] },
+  local: {
+    lists: ListRecordLocal[];
+    items: ItemRecordLocal[];
+    pending: PendingOp[];
+    deletedIds?: DeletedIds;
+  },
   cloud: CloudState,
 ): { lists: ListRecordLocal[]; items: ItemRecordLocal[]; pending: PendingOp[] } {
   const cloudListById = new Map(cloud.lists.map((c) => [c.id, c]));
   const cloudItemById = new Map(cloud.items.map((c) => [c.id, c]));
+  // Tombstone local: ids excluídos neste device não voltam do cloud.
+  const deletedLists = new Set(local.deletedIds?.lists ?? []);
+  const deletedItems = new Set(local.deletedIds?.items ?? []);
 
   // --- lists: local primeiro (ordem preservada), fundindo cloud mais recente;
-  //     listas só no cloud vão ao fim. ---
+  //     listas só no cloud (e não excluídas) vão ao fim. ---
   const mergedLists: ListRecordLocal[] = [];
   const seenListIds = new Set<string>();
   for (const l of local.lists) {
@@ -346,7 +462,7 @@ export function mergeCache(
     }
   }
   for (const cl of cloud.lists) {
-    if (!seenListIds.has(cl.id)) {
+    if (!seenListIds.has(cl.id) && !deletedLists.has(cl.id)) {
       seenListIds.add(cl.id);
       mergedLists.push({
         id: cl.id,
@@ -357,11 +473,12 @@ export function mergeCache(
     }
   }
 
-  // --- items: por id, mesma regra de merge. ---
+  // --- items: por id, mesma regra de merge; só-cloud em deletedIds são pulados. ---
   const localItemById = new Map(local.items.map((i) => [i.id, i]));
   const mergedItemById = new Map<string, ItemRecordLocal>();
   for (const i of local.items) mergedItemById.set(i.id, i);
   for (const ci of cloud.items) {
+    if (deletedItems.has(ci.id)) continue; // tombstone: não reimporta.
     const ex = localItemById.get(ci.id);
     if (!ex) {
       mergedItemById.set(ci.id, {
@@ -385,14 +502,20 @@ export function mergeCache(
 
   // --- ordenação: por lista (ordem de mergedLists), a-fazer ++ concluídos;
   //     itens locais preservam ordem relativa; só-cloud entram ao fim da
-  //     seção. ---
+  //     seção. Pula itens de listas excluídas (órfãos no cloud). ---
   const mergedItems: ItemRecordLocal[] = [];
   for (const l of mergedLists) {
     const localListItems = local.items.filter((i) => i.listId === l.id);
     const localIds = new Set(localListItems.map((i) => i.id));
     const cloudOnly = cloud.items
-      .filter((ci) => ci.list_id === l.id && !localIds.has(ci.id))
-      .map((ci) => mergedItemById.get(ci.id)!);
+      .filter(
+        (ci) =>
+          ci.list_id === l.id &&
+          !localIds.has(ci.id) &&
+          !deletedItems.has(ci.id),
+      )
+      .map((ci) => mergedItemById.get(ci.id)!)
+      .filter((i) => i !== undefined);
     const all = [
       ...localListItems.map((i) => mergedItemById.get(i.id)!),
       ...cloudOnly,
@@ -481,13 +604,14 @@ export function createLocalFirstRepository(
 
   function emptyState(userId: string | null): CacheState {
     return {
-      version: V3,
+      version: V4,
       userId,
       lists: [],
       items: [],
       pending: [],
       migrated: false,
       lastSyncAt: null,
+      deletedIds: { lists: [], items: [] },
     };
   }
 
@@ -507,18 +631,20 @@ export function createLocalFirstRepository(
   function loadFromStorage(): CacheState {
     const raw = storage.getItem(STORAGE_KEY);
     if (raw) {
+      const v4 = parseV4(raw);
+      if (v4) return v4;
       const v3 = parseV3(raw);
-      if (v3) return v3;
+      if (v3) return migrateV3toV4(v3);
       const v2 = parseV2(raw);
-      if (v2) return migrateV2toV3(v2, clock());
+      if (v2) return migrateV3toV4(migrateV2toV3(v2, clock()));
       // payload corrompido: ignora e cai no vazio (não re-migra legacy).
     }
     const legacy = parseLegacy(storage.getItem(LEGACY_KEY));
     if (legacy && legacy.length > 0) {
-      const v3 = migrateV2toV3(migrateFromLegacy(legacy), clock());
-      persist(v3);
+      const v4 = migrateV3toV4(migrateV2toV3(migrateFromLegacy(legacy), clock()));
+      persist(v4);
       storage.removeItem(LEGACY_KEY); // marcado como migrado: não re-migra.
-      return v3;
+      return v4;
     }
     return emptyState(currentUserId);
   }
@@ -698,6 +824,31 @@ export function createLocalFirstRepository(
       const normItems = reapplyTimestamps(s.items, next, id);
       persist(withPending({ ...s, items: normItems }, { kind: "item", id }));
     },
+    deleteItem(id) {
+      const s = read();
+      if (!s.items.some((i) => i.id === id)) return;
+      const items = deleteItemFromLista(s.items, id);
+      const deletedIds: DeletedIds = {
+        lists: s.deletedIds.lists,
+        items: dedup([...s.deletedIds.items, id]),
+      };
+      // Item excluído não faz sentido no push de upsert: tira da fila.
+      const pending = s.pending.filter((p) => p.id !== id);
+      persist({ ...s, items, deletedIds, pending });
+    },
+    deleteLista(id) {
+      const s = read();
+      if (!s.lists.some((l) => l.id === id)) return;
+      const cascaded = deleteListaCascade(s, id);
+      const removedIds = new Set([id, ...cascaded.deletedIds.items]);
+      const deletedIds: DeletedIds = {
+        lists: dedup([...s.deletedIds.lists, ...cascaded.deletedIds.lists]),
+        items: dedup([...s.deletedIds.items, ...cascaded.deletedIds.items]),
+      };
+      // Lista/itens excluídos saem da fila de upsert.
+      const pending = s.pending.filter((p) => !removedIds.has(p.id));
+      persist({ ...s, lists: cascaded.lists, items: cascaded.items, deletedIds, pending });
+    },
 
     async sync() {
       const adapter = getAdapter();
@@ -708,7 +859,7 @@ export function createLocalFirstRepository(
         // 1. Migração do 1º login (se pendente).
         if (!s.migrated) s = enqueueAllAsPending(s);
 
-        // 2. PUSH — aplica a fila ao cloud; limpa pending em sucesso.
+        // 2. PUSH upserts — aplica a fila ao cloud; limpa pending em sucesso.
         if (s.pending.length > 0) {
           const { lists, items } = pendingRecords(s);
           if (lists.length > 0 || items.length > 0) {
@@ -718,10 +869,17 @@ export function createLocalFirstRepository(
           s = { ...s, pending: [] };
         }
 
-        // 3. PULL — lê o cloud e merge por updated_at.
+        // 3. PUSH hard deletes — exclui no cloud os ids do tombstone local;
+        //    limpa deletedIds em sucesso (se a rede falhar, mantém para retry).
+        if (s.deletedIds.lists.length > 0 || s.deletedIds.items.length > 0) {
+          await adapter.delete(s.deletedIds.lists, s.deletedIds.items);
+          s = { ...s, deletedIds: { lists: [], items: [] } };
+        }
+
+        // 4. PULL — lê o cloud e merge upsert-only (filtra deletedIds).
         const cloud = await adapter.pull();
         const merged = mergeCache(
-          { lists: s.lists, items: s.items, pending: s.pending },
+          { lists: s.lists, items: s.items, pending: s.pending, deletedIds: s.deletedIds },
           cloud,
         );
         s = {
@@ -735,7 +893,7 @@ export function createLocalFirstRepository(
         persist(s);
         return { pushed, pulled: cloud.lists.length + cloud.items.length };
       } catch {
-        // Rede falhou no meio: mantém pending; não marca migrated.
+        // Rede falhou no meio: mantém pending + deletedIds; não marca migrated.
         return { pushed, pulled: 0 };
       }
     },

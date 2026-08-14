@@ -1,28 +1,46 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   addItemToLista,
+  deleteItem,
+  deleteLista,
   renameList,
   toggleItem,
   useHydrated,
   useLista,
 } from "@/lib/todos/store";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import type { Item, Lista } from "@/lib/todos/types";
 
 /**
  * Tela da lista (`/listas/[id]`) — título editável (click-to-edit), subtítulo de
  * contagem, entrada inline (LB-4) e seções a-fazer (topo) / concluídos (embaixo).
- * Reutilização/duplicado ao adicionar via Enter. Consome só o `store`.
+ * Reutilização/duplicado ao adicionar via Enter. Exclusão de item (botão "×")
+ * e de lista ("Excluir lista" no rodapé), ambas com confirmação prévia (LB-8).
+ * Consome só o `store`.
  */
+type Confirmacao =
+  | { tipo: "item"; alvo: Item }
+  | { tipo: "lista"; alvo: Lista };
+
 export function ListaScreen({ listId }: { listId: string }) {
   const { lista, aFazer, concluidos } = useLista(listId);
   const hydrated = useHydrated();
+  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null);
+
+  // Deep-link para lista inexistente/excluída: volta ao índice (LB-8 §4).
+  useEffect(() => {
+    if (hydrated && !lista) router.replace("/");
+  }, [hydrated, lista, router]);
 
   // highlight transitório do item focado (duplicado ativo): scrollIntoView + some em ~1,2s.
   useEffect(() => {
@@ -64,6 +82,27 @@ export function ListaScreen({ listId }: { listId: string }) {
       setHighlightId(outcome.existingId);
     }
   }
+
+  function confirmarExclusao() {
+    if (!confirmacao) return;
+    if (confirmacao.tipo === "item") {
+      deleteItem(confirmacao.alvo.id);
+    } else {
+      deleteLista(confirmacao.alvo.id);
+      // O usuário estava dentro da lista excluída: volta ao índice (LB-8 §2.2).
+      router.replace("/");
+    }
+    setConfirmacao(null);
+  }
+
+  const tituloConfirmacao = confirmacao?.tipo === "item" ? "Excluir item?" : "Excluir lista?";
+  const descricaoConfirmacao =
+    confirmacao?.tipo === "item"
+      ? `Excluir "${confirmacao.alvo.texto}" da lista? Esta ação não pode ser desfeita.`
+      : confirmacao?.tipo === "lista"
+        ? `Excluir "${confirmacao.alvo.nome}" e todos os seus itens? Esta ação não pode ser desfeita.`
+        : "";
+  const labelConfirmacao = confirmacao?.tipo === "item" ? "Excluir" : "Excluir lista";
 
   return (
     <div className="mt-6">
@@ -127,9 +166,9 @@ export function ListaScreen({ listId }: { listId: string }) {
 
       <ul className="mt-4 divide-y divide-current/10">
         {aFazer.map((item) => (
-          <li key={item.id} id={`item-${item.id}`}>
+          <li key={item.id} id={`item-${item.id}`} className="flex items-center gap-3 py-2">
             <label
-              className={`flex min-h-11 items-center gap-3 py-2 ${
+              className={`flex min-h-11 flex-1 items-center gap-3 cursor-pointer ${
                 highlightId === item.id ? "rounded bg-current/10" : ""
               }`}
             >
@@ -142,6 +181,15 @@ export function ListaScreen({ listId }: { listId: string }) {
               />
               <span>{item.texto}</span>
             </label>
+            <button
+              type="button"
+              onClick={() => setConfirmacao({ tipo: "item", alvo: item })}
+              className="flex min-h-11 min-w-11 items-center justify-center text-lg text-muted hover:text-foreground"
+              aria-label={`Excluir "${item.texto}"`}
+              title="Excluir item"
+            >
+              ✕
+            </button>
           </li>
         ))}
       </ul>
@@ -151,9 +199,9 @@ export function ListaScreen({ listId }: { listId: string }) {
           <p className="text-muted text-base">Concluídos</p>
           <ul className="mt-2 divide-y divide-current/10">
             {concluidos.map((item) => (
-              <li key={item.id} id={`item-${item.id}`}>
+              <li key={item.id} id={`item-${item.id}`} className="flex items-center gap-3 py-2">
                 <label
-                  className={`flex min-h-11 items-center gap-3 py-2 ${
+                  className={`flex min-h-11 flex-1 items-center gap-3 cursor-pointer ${
                     highlightId === item.id ? "rounded bg-current/10" : ""
                   }`}
                 >
@@ -166,11 +214,40 @@ export function ListaScreen({ listId }: { listId: string }) {
                   />
                   <span className="line-through text-muted">{item.texto}</span>
                 </label>
+                <button
+                  type="button"
+                  onClick={() => setConfirmacao({ tipo: "item", alvo: item })}
+                  className="flex min-h-11 min-w-11 items-center justify-center text-lg text-muted hover:text-foreground"
+                  aria-label={`Excluir "${item.texto}"`}
+                  title="Excluir item"
+                >
+                  ✕
+                </button>
               </li>
             ))}
           </ul>
         </div>
       ) : null}
+
+      {lista ? (
+        <button
+          type="button"
+          onClick={() => setConfirmacao({ tipo: "lista", alvo: lista })}
+          className="mt-8 min-h-11 w-full rounded border border-current/20 px-3 py-2 text-base text-red-600 dark:text-red-400"
+        >
+          Excluir lista
+        </button>
+      ) : null}
+
+      <ConfirmDialog
+        open={confirmacao !== null}
+        title={tituloConfirmacao}
+        description={descricaoConfirmacao}
+        confirmLabel={labelConfirmacao}
+        destructive
+        onConfirm={confirmarExclusao}
+        onCancel={() => setConfirmacao(null)}
+      />
     </div>
   );
 }

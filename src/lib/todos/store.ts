@@ -146,6 +146,20 @@ export function toggleItem(id: string): void {
   notify();
 }
 
+/** Hard delete de um item (cache + tombstone local) e notifica a UI. LB-8. */
+export function deleteItem(id: string): void {
+  repoInstance().deleteItem(id);
+  bumpVersion();
+  notify();
+}
+
+/** Hard delete de uma lista em cascade (cache + tombstone local) e notifica a UI. LB-8. */
+export function deleteLista(id: string): void {
+  repoInstance().deleteLista(id);
+  bumpVersion();
+  notify();
+}
+
 /**
  * Sincroniza o cache com o cloud (push dos pendentes + pull/merge por
  * `updated_at`). Acionado pelo `SyncController` ao montar/reconectar/logar.

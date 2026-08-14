@@ -31,6 +31,15 @@ export type ListaIndex = {
   aFazer: number;
 };
 
+/**
+ * Tombstone local de exclusão (LB-8, ADR 2026-08-14): ids excluídos no cache
+ * local para evitar ressuscitação no device de origem após o sync. **Não** é
+ * schema do cloud — vive só no cache localStorage (formato v4). No push do sync
+ * executa hard `DELETE` no cloud para esses ids; no pull/merge (upsert-only),
+ * ids aqui são filtrados ao reimportar do cloud.
+ */
+export type DeletedIds = { lists: string[]; items: string[] };
+
 /** Contrato da camada de acesso aos dados. */
 export interface ListasRepository {
   /** Listas em ordem de criação. */
@@ -49,6 +58,10 @@ export interface ListasRepository {
   addItem(listId: string, texto: string): AddOutcome;
   /** Alterna concluído / a fazer do item, movendo entre as seções. */
   toggleItem(id: string): void;
+  /** Hard delete do item: remove do cache e marca o id como excluído (tombstone local). */
+  deleteItem(id: string): void;
+  /** Hard delete da lista em cascade: remove a lista e seus itens do cache e marca os ids. */
+  deleteLista(id: string): void;
   /** Sincroniza com o cloud (push dos pendentes + pull/merge por `updated_at`). */
   sync(): Promise<{ pushed: number; pulled: number }>;
   /** Reinicia o cache para outra conta (isolamento no login/logout). */
