@@ -30,6 +30,7 @@ Fonte de verdade do processo. Cada agente lê este arquivo + seu doc em `docs/ag
 - **Grupo "Responsável"** (`🤖 PO`, `🤖 PD`, `🤖 DEV`, `🤖 QA`): indica qual agente deve atuar. Toda passagem de trabalho (transição de state, consulta, devolução) é uma troca deste label, e o responsável atual da tarefa é o único que pode mudar o label para o próximo responsável.
 - **Grupo "Tipo"** (`🧹 Tarefa`, `🛠️ Bug`, `🔍 Melhoria`): tipo da issue. Definido pelo PO no refinamento; não alterar depois sem motivo.
 - `**🚫 Sem automação**`: agentes NÃO tocam na issue (nem status, nem comentários). Somente o humano.
+- **Trocar o label de Responsável:** use `orca linear label remove <PO/PD/DEV/QA anterior> --current` + `orca linear label add <novo> --current`. **Nunca `label set`** para trocar responsável — ele substitui *todos* os labels e remove o `Tipo` (🛠️ Bug/🧹 Tarefa/🔍 Melhoria), que não deve mudar ao trocar de responsável.
 
 ## Regras gerais para todos os agentes
 
