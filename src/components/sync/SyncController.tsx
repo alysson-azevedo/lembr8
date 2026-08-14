@@ -2,20 +2,27 @@
 
 import { useEffect } from "react";
 import { getBrowserSupabase } from "@/lib/supabase/client";
-import { resetForUser, sync } from "@/lib/todos/store";
+import { resetForUser, subscribeToMutations, sync } from "@/lib/todos/store";
+import { createSyncTriggers, defaultSchedule } from "@/lib/sync/triggers";
 
 /**
- * Wiring de lifecycle do sync (LB-6) — plumbing, sem UI visível (`return null`).
- * Único componente de produto autorizado a importar `supabase` (a UI de listas
- * permanece isolada do storage/cloud).
+ * Wiring de lifecycle do sync (LB-6 + LB-7) — plumbing, sem UI visível
+ * (`return null`). Único componente de produto autorizado a importar `supabase`
+ * (a UI de listas permanece isolada do storage/cloud).
  *
  * Dispara `sync()` sempre que logado e online:
- *  - ao montar o app autenticado (se `navigator.onLine`);
- *  - no evento `online` (reconexão);
+ *  - ao montar o app autenticado (se `navigator.onLine`) — LB-6;
+ *  - no evento `online` (reconexão) — LB-6;
  *  - em `SIGNED_IN`/`INITIAL_SESSION` (`onAuthStateChange`) — `resetForUser`
- *    (isolamento por conta) + `sync()`;
- * Em `SIGNED_OUT` → `resetForUser(null)` (limpa o cache). `offline` não dispara
- * nada (continua no cache). Sem indicador de UI (padrão da spec de negócio).
+ *    (isolamento por conta) + `sync()` — LB-6;
+ *  - Em `SIGNED_OUT` → `resetForUser(null)` (limpa o cache) — LB-6.
+ *
+ * Gatilhos novos (LB-7):
+ *  - mutação online (create/rename/add/toggle) → `sync()` debounced (1500ms,
+ *    trailing), via `subscribeToMutations`. No-op offline (pending persiste).
+ *  - `visibilitychange` → visible + online → `sync()` (pull; sem debounce).
+ *
+ * Sem indicador de UI (padrão da spec de negócio).
  */
 export function SyncController(): null {
   useEffect(() => {
@@ -38,9 +45,24 @@ export function SyncController(): null {
       }
     });
 
+    // Gatilhos novos (LB-7) — debounce pós-mutação + visibility pull.
+    const triggers = createSyncTriggers({
+      isOnline: () => navigator.onLine,
+      visibilityState: () => document.visibilityState,
+      sync: () => void sync(),
+      schedule: defaultSchedule,
+      addEventListener: (type, cb) => {
+        document.addEventListener(type, cb);
+        return () => document.removeEventListener(type, cb);
+      },
+    });
+    const unsubMutations = subscribeToMutations(triggers.notifyMutation);
+
     return () => {
       window.removeEventListener("online", onOnline);
       sub.subscription.unsubscribe();
+      unsubMutations();
+      triggers.destroy();
     };
   }, []);
 
