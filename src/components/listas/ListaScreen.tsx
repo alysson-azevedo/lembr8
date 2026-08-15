@@ -12,6 +12,8 @@ import {
   useLista,
 } from "@/lib/todos/store";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Toast } from "@/components/ui/Toast";
+import { copyToClipboard, listaDeepLink } from "@/lib/clipboard/copyLink";
 import type { Item, Lista } from "@/lib/todos/types";
 
 /**
@@ -38,6 +40,16 @@ export function ListaScreen({ listId }: { listId: string }) {
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null);
   const [menuAberto, setMenuAberto] = useState(false);
+  const [toast, setToast] = useState<{ message: string } | null>(null);
+
+  // Copia o deep link da lista para a área de transferência (LB-12).
+  // O menu fecha síncrono antes do await (AC 4); o toast surge conforme o resultado.
+  async function onCopiarLink() {
+    if (!lista) return;
+    setMenuAberto(false);
+    const ok = await copyToClipboard(listaDeepLink(lista.id));
+    setToast({ message: ok ? "Link copiado" : "Não foi possível copiar o link" });
+  }
 
   // Deep-link para lista inexistente/excluída: volta ao índice (LB-8 §4).
   useEffect(() => {
@@ -169,6 +181,16 @@ export function ListaScreen({ listId }: { listId: string }) {
                     aria-label="Opções da lista"
                     className="absolute right-0 top-full z-20 mt-1 min-w-44 rounded border border-current/20 bg-background py-1"
                   >
+                    {/* Copiar link (não destrutivo, vem antes da ação destrutiva — LB-12). */}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={onCopiarLink}
+                      className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-foreground hover:bg-current/5"
+                    >
+                      <span aria-hidden="true">🔗</span> Copiar link
+                    </button>
+                    {/* Excluir lista (destrutivo, vermelho — LB-8). */}
                     <button
                       type="button"
                       role="menuitem"
@@ -176,7 +198,7 @@ export function ListaScreen({ listId }: { listId: string }) {
                         setMenuAberto(false);
                         setConfirmacao({ tipo: "lista", alvo: lista });
                       }}
-                      className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-red-600 dark:text-red-400"
+                      className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-red-600 dark:text-red-400 hover:bg-current/5"
                     >
                       <span aria-hidden="true">🗑️</span> Excluir lista
                     </button>
@@ -288,6 +310,12 @@ export function ListaScreen({ listId }: { listId: string }) {
         destructive
         onConfirm={confirmarExclusao}
         onCancel={() => setConfirmacao(null)}
+      />
+
+      <Toast
+        open={toast !== null}
+        message={toast?.message ?? ""}
+        onClose={() => setToast(null)}
       />
     </div>
   );
