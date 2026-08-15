@@ -102,6 +102,75 @@ function mesmoTexto(a: string, b: string): boolean {
 }
 
 /**
+ * Normaliza texto para casamento de sugestão (LB-13): trim + NFD (decompõe
+ * acentos) + remove diacríticos + lowercase. Ex.: "Café" → "cafe",
+ * "  Arroz " → "arroz". Usa `\p{Diacritic}` (Unicode property escape) — cobre
+ * acentos do PT-BR e outros; suportado em engines modernas (target do projeto).
+ * Própria do autocomplete: **não** reutiliza `mesmoTexto` (que é só case, sem
+ * remover acento) — critério diferente (insensível a acento) e propósito
+ * diferente (sugestão vs. detecção de duplicado), para não regressar `addItem`.
+ */
+export function normalizaTexto(s: string): string {
+  return s
+    .trim()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+}
+
+/**
+ * Casamento por prefixo, insensível a acento/caixa (LB-13): `normalizaTexto(texto)`
+ * começa com `normalizaTexto(prefix)`. Prefixo vazio → false (não casa nada).
+ * **Não** casa "contém" (mid-word) — fora de escopo.
+ */
+export function prefixoCombina(prefix: string, texto: string): boolean {
+  const p = normalizaTexto(prefix);
+  if (!p) return false;
+  return normalizaTexto(texto).startsWith(p);
+}
+
+/**
+ * Sugestões de itens para o autocomplete (LB-13 AC 1/2/3/4/6).
+ * `items`: registros `{ texto, updatedAt }` (lê-se do cache; `updatedAt` é o
+ * critério de recência já existente — sem dado novo).
+ * Regras:
+ *  (a) dedup por `normalizaTexto(texto)`, mantendo a ocorrência de **maior
+ *      `updatedAt`** (AC "todas as listas" — textos iguais em listas diferentes
+ *      viram uma sugestão; mostra o texto da ocorrência mais recente, preser-
+ *      vando capitalização/acentos daquela ocorrência);
+ *  (b) filtra por `prefixoCombina(query, texto)` (só prefixo);
+ *  (c) ordena por `updatedAt` **desc** (mais recente primeiro);
+ *  (d) limita a `limit` (AC = 6).
+ * Retorna `string[]` (os textos sugeridos). Não muta a entrada.
+ */
+export function sugestoesPara(
+  items: { texto: string; updatedAt: string }[],
+  query: string,
+  limit: number,
+): string[] {
+  const q = normalizaTexto(query);
+  if (!q) return [];
+  // (a) dedup por texto normalizado, mantendo o de maior updatedAt.
+  const best = new Map<string, { texto: string; updatedAt: string }>();
+  for (const it of items) {
+    const norm = normalizaTexto(it.texto);
+    if (!norm) continue;
+    const ex = best.get(norm);
+    if (!ex || it.updatedAt > ex.updatedAt) {
+      best.set(norm, { texto: it.texto, updatedAt: it.updatedAt });
+    }
+  }
+  // (b)(c)(d) filtra prefixo, ordena updatedAt desc, limita.
+  return [...best.values()]
+    .filter((c) => normalizaTexto(c.texto).startsWith(q))
+    .sort((a, b) =>
+      a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0,
+    )
+    .slice(0, limit)
+    .map((c) => c.texto);
+}
+
+/**
  * Adiciona um texto a uma lista aplicando a precedência da spec (§7):
  * (1) duplicado ativo → não cria, devolve `duplicate` com o id existente;
  * (2) concluído igual → reativa (`concluido=false`), move ao fim dos a-fazer;
@@ -773,6 +842,16 @@ export function createLocalFirstRepository(
     },
     listItems(listId) {
       return read().items.filter((i) => i.listId === listId);
+    },
+    listItemSuggestions(query, limit) {
+      // Lê TODOS os itens do cache (de todas as listas da conta, isoladas por
+      // userId/RLS) e devolve textos sugeridos — sem expor ItemRecordLocal/updatedAt
+      // para fora (mapeia para o shape estreito). Sem chamada ao Supabase.
+      return sugestoesPara(
+        read().items.map((i) => ({ texto: i.texto, updatedAt: i.updatedAt })),
+        query,
+        limit,
+      );
     },
     createList(nome) {
       const s = read();

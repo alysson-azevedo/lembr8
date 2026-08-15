@@ -27,6 +27,7 @@ function fakeRepo(): ListasRepository {
       })),
     getLista: (id) => lists.find((l) => l.id === id) ?? null,
     listItems: (listId) => items.filter((i) => i.listId === listId),
+    listItemSuggestions: () => [],
     createList: (nome) => {
       const l: Lista = { id: crypto.randomUUID(), nome };
       lists = [...lists, l];
