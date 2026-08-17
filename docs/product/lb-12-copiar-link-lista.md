@@ -1,6 +1,6 @@
 # Spec LB-12 — Copiar link da lista no menu overflow
 
-**Issue:** [LB-12](https://linear.app/alysson-azevedo/issue/LB-12/copiar-link-compartilhar-lista-no-menu-overflow) · **State:** 📑 Spec · **Tipo:** 🔍 Melhoria · **Prioridade:** baixa
+**Issue:** [LB-12](https://linear.app/alysson-azevedo/issue/LB-12/copiar-link-compartilhar-lista-no-menu-overflow) · **State:** ✅ Deployed (v0.6.0) · **Tipo:** 🔍 Melhoria · **Prioridade:** baixa
 **Base:** LB-8 (✅ Deployed) — menu overflow "⋮" na tela de lista (`/listas/[id]`) já expõe "🗑️ Excluir lista". LB-5 (múltiplas listas) e LB-6 (Supabase, RLS por `auth.uid()`).
 
 **Escopo desta spec:** negócio (critérios de aceite + UX do ponto de vista do usuário). A spec de **design** (controle de UI, mecanismo de clipboard, componente de toast, estrutura de código) é trabalho do 🤖 PD em `design/lb-12-*.md`.
