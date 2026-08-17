@@ -14,6 +14,8 @@ Trigger de sync pós-mutação e ao focar a aba (LB-7, ✅ Deployed v0.4.3): o `
 
 Excluir itens e listas (LB-8, ✅ Deployed v0.5.0): exclusão de item (× por item) e de lista inteira (cascade nos itens) com **confirmação prévia** (a de lista avisa que os itens vão junto); **hard delete** no cloud (grant + RLS de delete por `auth.uid()`) e **local-first** (responde do cache, funciona offline). Tombstone local no cache (`deletedIds`) evita a ressuscitação do excluído no device de origem após o sync; pull **upsert-only** filtra esses ids. Re-adicionar texto igual cria item novo/distinto. Propagação cross-device da exclusão via sync **fora de escopo** (limitação aceita — ADR 2026-08-14). Spec em `lb-8-remover-itens.md`, design em `design/lb-8-remover-itens.md`.
 
+Mover rótulos de ambiente/build para o rodapé (LB-11, ✅ Deployed v0.5.1): os rótulos de **Ambiente** (`development`/`preview`/`production`) e **Build** (hash curto do commit) saem do fluxo de conteúdo principal do shell autenticado e passam a ser um `<footer>` discreto na base do `<main>`, irmão do container `max-w-[28rem]` — não ocupam mais espaço vertical na rota e ficam alinhados à coluna central. `getBuildInfo()` intocada (só layout/posicionamento mudam); visível apenas nas rotas do grupo `(app)` (`/` e `/listas/[id]`), não em `/login`. Rodapé no fluxo (não `fixed`/`sticky`) com `pb-[max(1.5rem,env(safe-area-inset-bottom))]` — nunca sobrepõe nem empurra o conteúdo. Sem nova funcionalidade nem mudança de stack/schema → PATCH bump. Spec de design em `design/lb-11-rotulos-rodape.md`.
+
 Pontos mapeados para spec futura:
 - Tratamento de timezone do usuário nos horários de lembrete.
 - Notificações / Web Push e lembretes por horário.

@@ -1,6 +1,6 @@
 # Spec de design — LB-11: Mover rótulos de ambiente/build para o rodapé
 
-**Issue:** [LB-11](https://linear.app/alysson-azevedo/issue/LB-11/mover-rotulos-de-ambientebuild-para-o-rodape) · **State:** 📑 Spec → 🚧 Dev in progress · **Tipo:** 🔍 Melhoria
+**Issue:** [LB-11](https://linear.app/alysson-azevedo/issue/LB-11/mover-rotulos-de-ambientebuild-para-o-rodape) · **State:** ✅ Deployed (v0.5.1) · **Tipo:** 🔍 Melhoria
 **Base:** LB-5 (shell autenticado, ✅ Deployed). Arquivos afetados: `src/app/(app)/layout.tsx` (único). Sem mudança em `src/lib/build-info.ts`, `src/app/layout.tsx`, `/login`, nem em componentes/rotas.
 
 Frontend/layout apenas. Sem mudança de funcionalidade, de conteúdo dos rótulos, nem da fonte de dados (`getBuildInfo()` intocada — critério 3 da issue). Sem novos componentes, tokens de cor ou fontes. **Sem indicador de UI novo** — só reposiciona o bloco já existente.
