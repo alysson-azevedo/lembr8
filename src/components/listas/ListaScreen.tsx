@@ -8,6 +8,7 @@ import {
   deleteLista,
   renameList,
   toggleItem,
+  togglePinLista,
   useHydrated,
   useLista,
 } from "@/lib/todos/store";
@@ -169,6 +170,21 @@ export function ListaScreen({ listId }: { listId: string }) {
                     aria-label="Opções da lista"
                     className="absolute right-0 top-full z-20 mt-1 min-w-44 rounded border border-current/20 bg-background py-1"
                   >
+                    {/* LB-14 — Fixar/Desfixar (não destrutivo, toggle — texto
+                        reflete o estado). Não destrutivo vem antes do destrutivo
+                        (mesmo princípio de ordenamento de LB-8/LB-12). */}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuAberto(false);
+                        togglePinLista(lista.id);
+                      }}
+                      className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-foreground hover:bg-current/5"
+                    >
+                      <span aria-hidden="true">📌</span>{" "}
+                      {lista.pinned ? "Desfixar lista" : "Fixar lista"}
+                    </button>
                     <button
                       type="button"
                       role="menuitem"

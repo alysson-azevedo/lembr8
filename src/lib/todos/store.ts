@@ -6,6 +6,7 @@ import type {
   AddOutcome,
   Item,
   Lista,
+  ListaDetalhe,
   ListaIndex,
   ListasRepository,
 } from "./types";
@@ -13,8 +14,9 @@ import type {
 /**
  * Ponte client-only entre a UI e a camada única de acesso aos dados (LB-5).
  * A UI consome `useListas` / `useLista` / `createList` / `renameList` /
- * `addItemToLista` / `toggleItem` — nunca acessa `localStorage` ou o
- * repositório diretamente. `useSyncExternalStore` lê o storage só no cliente
+ * `addItemToLista` / `toggleItem` / `togglePinLista` (LB-14) — nunca acessa
+ * `localStorage` ou o repositório diretamente. `useSyncExternalStore` lê o
+ * storage só no cliente
  * (após hidratação), evitando acesso ao `localStorage` durante a renderização
  * no servidor e mismatch de hidratação.
  *
@@ -33,7 +35,7 @@ const EMPTY_ITEMS: Item[] = [];
 // sync()/resetForUser(), o que re-acionaria o trigger em loop.
 const mutationListeners = new Set<() => void>();
 
-type ListaScreen = { lista: Lista | null; aFazer: Item[]; concluidos: Item[] };
+type ListaScreen = { lista: ListaDetalhe | null; aFazer: Item[]; concluidos: Item[] };
 const EMPTY_SCREEN: ListaScreen = {
   lista: null,
   aFazer: EMPTY_ITEMS,
@@ -149,6 +151,14 @@ export function createList(): Lista {
 /** Renomeia uma lista e notifica a UI. */
 export function renameList(id: string, nome: string): void {
   repoInstance().renameList(id, nome);
+  bumpVersion();
+  notify();
+  notifyMutations();
+}
+
+/** Alterna (fixa/desfixa) uma lista e notifica a UI. LB-14. */
+export function togglePinLista(id: string): void {
+  repoInstance().togglePinLista(id);
   bumpVersion();
   notify();
   notifyMutations();

@@ -27,7 +27,7 @@ type LocalList = CacheState["lists"][number];
 type LocalItem = CacheState["items"][number];
 
 function localList(id: string, nome: string, updatedAt = T0): LocalList {
-  return { id, nome, createdAt: T0, updatedAt };
+  return { id, nome, pinned: false, createdAt: T0, updatedAt };
 }
 function localItem(
   id: string,
@@ -39,7 +39,7 @@ function localItem(
   return { id, listId, texto, concluido, createdAt: T0, updatedAt };
 }
 function cloudList(id: string, nome: string, updatedAt = T0): ListRecord {
-  return { id, nome, created_at: T0, updated_at: updatedAt };
+  return { id, nome, pinned: false, created_at: T0, updated_at: updatedAt };
 }
 function cloudItem(
   id: string,
@@ -357,7 +357,7 @@ describe("createLocalFirstRepository — deleteItem/deleteLista (LB-8)", () => {
     r.addItem(l.id, "arroz");
     const arroz = r.listItems(l.id)[0];
     r.deleteItem(arroz.id);
-    expect(JSON.parse(storageA.getItem("lembr8.data")!).version).toBe(4);
+    expect(JSON.parse(storageA.getItem("lembr8.data")!).version).toBe(5);
 
     const r2 = createLocalFirstRepository({ storage: storageA, adapter: null, clock });
     expect(r2.listItems(l.id)).toEqual([]);
@@ -381,10 +381,10 @@ describe("createLocalFirstRepository — deleteItem/deleteLista (LB-8)", () => {
     );
     const repo = createLocalFirstRepository({ storage, adapter: null, userId: "user-a", clock });
     expect(repo.listListas().map((l) => l.nome)).toEqual(["Lista 1"]);
-    // a migração v3→v4 é lazy em memória; uma mutação a persiste no novo formato.
+    // a migração v3→v4→v5 é lazy em memória; uma mutação a persiste no novo formato.
     repo.renameList("l1", "Lista 1");
     const raw = JSON.parse(storage.getItem("lembr8.data")!);
-    expect(raw.version).toBe(4);
+    expect(raw.version).toBe(5);
     expect(raw.deletedIds).toEqual({ lists: [], items: [] });
   });
 });

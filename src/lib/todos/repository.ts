@@ -27,16 +27,20 @@ import type {
  * encapsula storage + adapter (injetáveis, testáveis em node/jsdom sem
  * `localStorage`/Supabase reais).
  *
- * Formato do cache (v3): chave única `lembr8.data` com
- * `{ version:3, userId, lists, items, pending, migrated, lastSyncAt }`.
- * `lists` em ordem de criação; `items` de cada lista em ordem de exibição —
+ * Formato do cache (v5): chave única `lembr8.data` com
+ * `{ version:5, userId, lists, items, pending, migrated, lastSyncAt, deletedIds }`.
+ * `lists` preserva a ordem de inserção no array (base do merge); a ordenação de
+ * exibição do índice (Fixadas → Demais, `updated_at` desc) é computada em
+ * `listIndex()`, não no array. `items` de cada lista em ordem de exibição —
  * a-fazer (inserção) ++ concluídos (conclusão) — então o array de itens já é a
  * ordem de renderização. Cada registro ganha `createdAt`/`updatedAt`
- * (timestamps do device; governam o merge cross-device por `updated_at`).
+ * (timestamps do device; governam o merge cross-device por `updated_at`) e, no
+ * caso de listas, `pinned` (LB-14, default `false`).
  *
  * Migrações de formato: MVP (`lembr8.todos`, lista única) → v2 (LB-5) → v3
- * (LB-6), preservando ids/registros. `migrated=false` após v2→v3 garante que
- * dados pré-upgrade sobam ao cloud no 1º login (§4 da spec de design).
+ * (LB-6) → v4 (LB-8, `deletedIds`) → v5 (LB-14, `pinned`), preservando
+ * ids/registros. `migrated=false` após v2→v3 garante que dados pré-upgrade sobam
+ * ao cloud no 1º login (§4 da spec de design).
  */
 
 const STORAGE_KEY = "lembr8.data";
@@ -44,11 +48,19 @@ const LEGACY_KEY = "lembr8.todos";
 const V2 = 2;
 const V3 = 3;
 const V4 = 4;
+const V5 = 5;
 
-/** Registro de lista no cache local (timestamp para o merge). */
-type ListRecordLocal = Lista & { createdAt: string; updatedAt: string };
+/**
+ * Registro de lista no cache local **antes** de `pinned` (v3/v4) — timestamp
+ * para o merge, sem estado de fixação. Usado só pelos parsers/migrações de
+ * versões antigas; o estado corrente (v5) usa `ListRecordLocal` (com `pinned`).
+ */
+type ListRecordBase = Lista & { createdAt: string; updatedAt: string };
 /** Registro de item no cache local (timestamp para o merge). */
 type ItemRecordLocal = Item & { createdAt: string; updatedAt: string };
+
+/** Registro de lista no cache local v5 (LB-14): adiciona `pinned` ao base. */
+type ListRecordLocal = ListRecordBase & { pinned: boolean };
 
 /** Estado v2 legado (LB-5), sem timestamps. */
 type AppStateV2 = { version: 2; lists: Lista[]; items: Item[] };
@@ -62,7 +74,7 @@ export type PendingOp =
 export type CacheStateV3 = {
   version: 3;
   userId: string | null;
-  lists: ListRecordLocal[];
+  lists: ListRecordBase[];
   items: ItemRecordLocal[];
   pending: PendingOp[];
   migrated: boolean;
@@ -75,8 +87,26 @@ export type CacheStateV3 = {
  * a `deletedIds`; no push do sync executa hard `DELETE` no cloud e os limpa; no
  * pull/merge (upsert-only) filtra esses ids ao reimportar do cloud.
  */
-export type CacheState = {
+export type CacheStateV4 = {
   version: 4;
+  userId: string | null;
+  lists: ListRecordBase[];
+  items: ItemRecordLocal[];
+  pending: PendingOp[];
+  migrated: boolean;
+  lastSyncAt: string | null;
+  deletedIds: DeletedIds;
+};
+
+/**
+ * Estado do cache v5 (LB-14): adiciona `pinned` (booleano, default `false`) aos
+ * registros de lista — campo aditivo, sem breaking change nos dados existentes
+ * (a migration v4→v5 seta `pinned=false` em cada lista). Nenhuma mudança de
+ * schema do cloud além da coluna aditiva `lists.pinned` (default `false`); a
+ * RLS por `auth.uid()` existente continua cobrindo o campo (AC 13).
+ */
+export type CacheState = {
+  version: 5;
   userId: string | null;
   lists: ListRecordLocal[];
   items: ItemRecordLocal[];
@@ -281,10 +311,16 @@ function isItem(value: unknown): value is Item {
   );
 }
 
-function isListRecordLocal(value: unknown): value is ListRecordLocal {
+function isListRecordBase(value: unknown): value is ListRecordBase {
   if (!isLista(value)) return false;
   const v = value as Record<string, unknown>;
   return typeof v.createdAt === "string" && typeof v.updatedAt === "string";
+}
+
+function isListRecordLocal(value: unknown): value is ListRecordLocal {
+  if (!isListRecordBase(value)) return false;
+  const v = value as Record<string, unknown>;
+  return typeof v.pinned === "boolean";
 }
 
 function isItemRecordLocal(value: unknown): value is ItemRecordLocal {
@@ -336,7 +372,7 @@ function parseV3(raw: string | null): CacheStateV3 | null {
     return {
       version: V3,
       userId: typeof data.userId === "string" ? data.userId : null,
-      lists: Array.isArray(data.lists) ? data.lists.filter(isListRecordLocal) : [],
+      lists: Array.isArray(data.lists) ? data.lists.filter(isListRecordBase) : [],
       items: Array.isArray(data.items) ? data.items.filter(isItemRecordLocal) : [],
       pending: Array.isArray(data.pending) ? data.pending.filter(isPendingOp) : [],
       migrated: data.migrated === true,
@@ -347,7 +383,7 @@ function parseV3(raw: string | null): CacheStateV3 | null {
   }
 }
 
-function parseV4(raw: string | null): CacheState | null {
+function parseV4(raw: string | null): CacheStateV4 | null {
   if (!raw) return null;
   try {
     const data = JSON.parse(raw);
@@ -355,6 +391,27 @@ function parseV4(raw: string | null): CacheState | null {
       return null;
     return {
       version: V4,
+      userId: typeof data.userId === "string" ? data.userId : null,
+      lists: Array.isArray(data.lists) ? data.lists.filter(isListRecordBase) : [],
+      items: Array.isArray(data.items) ? data.items.filter(isItemRecordLocal) : [],
+      pending: Array.isArray(data.pending) ? data.pending.filter(isPendingOp) : [],
+      migrated: data.migrated === true,
+      lastSyncAt: typeof data.lastSyncAt === "string" ? data.lastSyncAt : null,
+      deletedIds: isDeletedIds(data.deletedIds) ? data.deletedIds : { lists: [], items: [] },
+    };
+  } catch {
+    return null;
+  }
+}
+
+function parseV5(raw: string | null): CacheState | null {
+  if (!raw) return null;
+  try {
+    const data = JSON.parse(raw);
+    if (typeof data !== "object" || data === null || data.version !== V5)
+      return null;
+    return {
+      version: V5,
       userId: typeof data.userId === "string" ? data.userId : null,
       lists: Array.isArray(data.lists) ? data.lists.filter(isListRecordLocal) : [],
       items: Array.isArray(data.items) ? data.items.filter(isItemRecordLocal) : [],
@@ -410,8 +467,22 @@ export function migrateV2toV3(v2: AppStateV2, now: string): CacheStateV3 {
  * schema do cloud — é o cache localStorage (o ADR proíbe tombstone no schema do
  * Supabase, não no cache).
  */
-export function migrateV3toV4(v3: CacheStateV3): CacheState {
+export function migrateV3toV4(v3: CacheStateV3): CacheStateV4 {
   return { ...v3, version: V4, deletedIds: { lists: [], items: [] } };
+}
+
+/**
+ * Migra o cache v4 (LB-8) para v5 (LB-14): adiciona `pinned: false` a cada
+ * lista (campo aditivo, default `false` — lista existente não nasce fixada,
+ * AC 12), preservando lists/items/pending/migrated/lastSyncAt/userId/deletedIds.
+ * Sem breaking change nos dados; nenhuma lista fica fixada após o upgrade.
+ */
+export function migrateV4toV5(v4: CacheStateV4): CacheState {
+  return {
+    ...v4,
+    version: V5,
+    lists: v4.lists.map((l) => ({ ...l, pinned: false })),
+  };
 }
 
 // --- merge por updated_at (lógica pura, testável) ---
@@ -454,6 +525,7 @@ export function mergeCache(
       mergedLists.push({
         ...l,
         nome: cl.nome,
+        pinned: cl.pinned,
         createdAt: cl.created_at,
         updatedAt: cl.updated_at,
       });
@@ -467,6 +539,7 @@ export function mergeCache(
       mergedLists.push({
         id: cl.id,
         nome: cl.nome,
+        pinned: cl.pinned,
         createdAt: cl.created_at,
         updatedAt: cl.updated_at,
       });
@@ -604,7 +677,7 @@ export function createLocalFirstRepository(
 
   function emptyState(userId: string | null): CacheState {
     return {
-      version: V4,
+      version: V5,
       userId,
       lists: [],
       items: [],
@@ -622,29 +695,39 @@ export function createLocalFirstRepository(
     storage.setItem(STORAGE_KEY, JSON.stringify(withUser));
   }
 
-  /** Lê o `userId` do cache persistido (sem hidratar o estado). */
+  /** Lê o `userId` do cache persistido (sem hidratar o estado), qualquer versão. */
   function peekPersistedUserId(): string | null {
-    const v3 = parseV3(storage.getItem(STORAGE_KEY));
-    return v3?.userId ?? null;
+    const raw = storage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    try {
+      const data = JSON.parse(raw) as { userId?: unknown };
+      return typeof data.userId === "string" ? data.userId : null;
+    } catch {
+      return null;
+    }
   }
 
   function loadFromStorage(): CacheState {
     const raw = storage.getItem(STORAGE_KEY);
     if (raw) {
+      const v5 = parseV5(raw);
+      if (v5) return v5;
       const v4 = parseV4(raw);
-      if (v4) return v4;
+      if (v4) return migrateV4toV5(v4);
       const v3 = parseV3(raw);
-      if (v3) return migrateV3toV4(v3);
+      if (v3) return migrateV4toV5(migrateV3toV4(v3));
       const v2 = parseV2(raw);
-      if (v2) return migrateV3toV4(migrateV2toV3(v2, clock()));
+      if (v2) return migrateV4toV5(migrateV3toV4(migrateV2toV3(v2, clock())));
       // payload corrompido: ignora e cai no vazio (não re-migra legacy).
     }
     const legacy = parseLegacy(storage.getItem(LEGACY_KEY));
     if (legacy && legacy.length > 0) {
-      const v4 = migrateV3toV4(migrateV2toV3(migrateFromLegacy(legacy), clock()));
-      persist(v4);
+      const v5 = migrateV4toV5(
+        migrateV3toV4(migrateV2toV3(migrateFromLegacy(legacy), clock())),
+      );
+      persist(v5);
       storage.removeItem(LEGACY_KEY); // marcado como migrado: não re-migra.
-      return v4;
+      return v5;
     }
     return emptyState(currentUserId);
   }
@@ -671,6 +754,24 @@ export function createLocalFirstRepository(
     );
     pending.push(op);
     return { ...s, pending };
+  }
+
+  /**
+   * Bumpa o `updated_at` da lista `listId` (LB-14, AC 8): atividade na lista
+   * (adicionar/marcar item) a reposiciona no índice por modificação. Devolve o
+   * novo array de listas e o timestamp usado. Não muta a entrada.
+   */
+  function bumpList(
+    s: CacheState,
+    listId: string,
+  ): { lists: ListRecordLocal[]; now: string } {
+    const now = clock();
+    return {
+      lists: s.lists.map((l) =>
+        l.id === listId ? { ...l, updatedAt: now } : l,
+      ),
+      now,
+    };
   }
 
   /** Migração do 1º login: enfileira TODOS os registros como pending. */
@@ -709,6 +810,7 @@ export function createLocalFirstRepository(
           pushLists.push({
             id: l.id,
             nome: l.nome,
+            pinned: l.pinned,
             created_at: l.createdAt,
             updated_at: l.updatedAt,
           });
@@ -761,12 +863,43 @@ export function createLocalFirstRepository(
     },
     listIndex() {
       const s = read();
-      return s.lists.map((lista) => ({
+      // Índice em duas seções (LB-14): Fixadas (pinned=true) no topo, Demais
+      // (pinned=false) abaixo; ambas por `updated_at` descendente (modificação
+      // mais recente primeiro). Empate de `updated_at`: desempate determinístico
+      // por `createdAt` desc, depois `id` desc. Mudança de comportamento: o
+      // índice ordenava por criação; agora ordena por modificação (AC 5/6/7).
+      const entries = s.lists.map((lista) => ({
         id: lista.id,
         nome: lista.nome,
+        pinned: lista.pinned,
         aFazer: s.items.filter((i) => i.listId === lista.id && !i.concluido)
           .length,
+        updatedAt: lista.updatedAt,
+        createdAt: lista.createdAt,
       }));
+      const byRecency = (a: typeof entries[number], b: typeof entries[number]) =>
+        a.updatedAt > b.updatedAt
+          ? -1
+          : a.updatedAt < b.updatedAt
+            ? 1
+            : a.createdAt > b.createdAt
+              ? -1
+              : a.createdAt < b.createdAt
+                ? 1
+                : a.id > b.id
+                  ? -1
+                  : 1;
+      const pinned = entries.filter((e) => e.pinned).sort(byRecency);
+      const demais = entries.filter((e) => !e.pinned).sort(byRecency);
+      // O contrato entrega só {id,nome,aFazer,pinned}; os campos auxiliares de
+      // ordenação não vazam para a UI.
+      const toIndex = (e: typeof entries[number]) => ({
+        id: e.id,
+        nome: e.nome,
+        aFazer: e.aFazer,
+        pinned: e.pinned,
+      });
+      return [...pinned.map(toIndex), ...demais.map(toIndex)];
     },
     getLista(id) {
       return read().lists.find((l) => l.id === id) ?? null;
@@ -780,6 +913,7 @@ export function createLocalFirstRepository(
       const lista: ListRecordLocal = {
         id: crypto.randomUUID(),
         nome,
+        pinned: false,
         createdAt: now,
         updatedAt: now,
       };
@@ -797,6 +931,19 @@ export function createLocalFirstRepository(
       );
       persist(withPending({ ...s, lists }, { kind: "list", id }));
     },
+    togglePinLista(id) {
+      const s = read();
+      if (!s.lists.some((l) => l.id === id)) return;
+      const now = clock();
+      // Toggle não destrutivo (LB-14, PO (b)): inverte `pinned` e bumpa
+      // `updated_at` para o cambio propagar cross-device via merge por
+      // `updated_at` (AC 11) e reposicionar a lista em sua seção por
+      // modificação. Enfileira pending para o push (AC 9/10).
+      const lists = s.lists.map((l) =>
+        l.id === id ? { ...l, pinned: !l.pinned, updatedAt: now } : l,
+      );
+      persist(withPending({ ...s, lists }, { kind: "list", id }));
+    },
     addItem(listId, texto) {
       const s = read();
       const { items, outcome } = addItemToLista(s.items, listId, texto);
@@ -810,7 +957,15 @@ export function createLocalFirstRepository(
           : null;
       const normItems = reapplyTimestamps(s.items, items, affectedId);
       if (affectedId) {
-        persist(withPending({ ...s, items: normItems }, { kind: "item", id: affectedId }));
+        // LB-14 (AC 8): atividade na lista bumpa seu `updated_at` (a
+        // reposiciona no índice por modificação) e enfileira a lista para o
+        // sync propagar o novo timestamp (junto ao item).
+        const { lists } = bumpList(s, listId);
+        const withItem = withPending(
+          { ...s, lists, items: normItems },
+          { kind: "item", id: affectedId },
+        );
+        persist(withPending(withItem, { kind: "list", id: listId }));
       } else {
         // duplicado ativo: sem mudança real, sem pending.
         persist({ ...s, items: normItems });
@@ -819,10 +974,18 @@ export function createLocalFirstRepository(
     },
     toggleItem(id) {
       const s = read();
-      if (!s.items.some((i) => i.id === id)) return;
+      const alvo = s.items.find((i) => i.id === id);
+      if (!alvo) return;
       const next = toggleItemLista(s.items, id);
       const normItems = reapplyTimestamps(s.items, next, id);
-      persist(withPending({ ...s, items: normItems }, { kind: "item", id }));
+      // LB-14 (AC 8): marcar/desmarcar item bumpa o `updated_at` da lista dona
+      // (reposiciona no índice) e enfileira a lista para o sync.
+      const { lists } = bumpList(s, alvo.listId);
+      const withItem = withPending(
+        { ...s, lists, items: normItems },
+        { kind: "item", id },
+      );
+      persist(withPending(withItem, { kind: "list", id: alvo.listId }));
     },
     deleteItem(id) {
       const s = read();
