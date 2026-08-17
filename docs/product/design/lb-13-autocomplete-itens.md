@@ -1,6 +1,6 @@
 # Spec de design — LB-13: Autocomplete de itens previamente adicionados (desktop e mobile)
 
-**Issue:** [LB-13](https://linear.app/alysson-azevedo/issue/LB-13/autocomplete-de-itens-previamente-adicionados-desktop-e-mobile) · **State:** 📑 Spec → 🚧 Dev in progress · **Tipo:** 🔍 Melhoria · **Prioridade:** baixa
+**Issue:** [LB-13](https://linear.app/alysson-azevedo/issue/LB-13/autocomplete-de-itens-previamente-adicionados-desktop-e-mobile) · **State:** ✅ Deployed (v0.7.0) · **Tipo:** 🔍 Melhoria · **Prioridade:** baixa
 **Base:** LB-3 (✅ Deployed) — entrada inline (campo + Enter); LB-4 (✅ Deployed) — UX mobile (alvos `min-h-11`/44px); LB-5 (✅ Deployed) — `Lista` + `Item`, reutilização/duplicado ao adicionar; LB-6 (✅ Deployed) — cache local-first com `createdAt`/`updatedAt` por registro, merge cross-device por `updated_at`, RLS por `auth.uid()`; LB-8 (✅ Deployed) — menu overflow "⋮" + `ConfirmDialog`.
 **Spec de negócio:** `docs/product/lb-13-autocomplete-itens.md` (AC + UX do usuário). **ADRs:** `docs/decisions.md`.
 
