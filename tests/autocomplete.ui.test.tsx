@@ -155,11 +155,17 @@ describe("ListaScreen — teclado no combobox (AC 7, 10)", () => {
     render(<ListaScreen listId={currentId} />);
     const input = novoItemInput();
     digitar("a");
-    fireEvent.keyDown(input, { key: "ArrowDown" }); // destaca "Arroz"
+    // A primeira suggestion depende do desempate por `updatedAt` (mais recente
+    // primeiro); como o seed é síncrono e os timestamps podem empatar no mesmo
+    // milissegundo, capturamos dinamicamente qual é a option em destaque em vez
+    // de fixar o texto — o AC 4/5 verifica "Enter no destaque preenche o campo",
+    // não qual texto especificamente.
+    const primeira = screen.getAllByRole("option")[0].textContent;
+    fireEvent.keyDown(input, { key: "ArrowDown" }); // destaca a 1ª option
     fireEvent.keyDown(input, { key: "Enter" });
 
     // campo preenchido com o texto sugerido; dropdown fechado.
-    expect(input.value).toBe("Arroz");
+    expect(input.value).toBe(primeira);
     expect(screen.queryByRole("listbox")).toBeNull();
     // NÃO criou item: nenhum checkbox na lista corrente.
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
