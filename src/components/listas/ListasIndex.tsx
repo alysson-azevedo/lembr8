@@ -53,7 +53,7 @@ export function ListasIndex() {
   );
 }
 
-/** Linha do índice: `<Link>` (nome + contagem) + 📌 só quando fixada. */
+/** Linha do índice: `<Link>` (nome + pin + contagem) — 📌 só quando fixada. */
 function Linha({ lista }: { lista: ListaIndex }) {
   return (
     <li className="flex items-center gap-2">
@@ -61,17 +61,16 @@ function Linha({ lista }: { lista: ListaIndex }) {
         href={`/listas/${lista.id}`}
         className="flex min-h-11 flex-1 items-center justify-between gap-4 text-base"
       >
-        <span>{lista.nome}</span>
+        <span className="flex items-center gap-1">
+          {lista.nome}
+          {lista.pinned ? (
+            <span aria-label={`Fixada: "${lista.nome}"`} className="text-sm">
+              <span aria-hidden="true">📌</span>
+            </span>
+          ) : null}
+        </span>
         <span className="text-muted text-base">{lista.aFazer} a fazer</span>
       </Link>
-      {lista.pinned ? (
-        <span
-          aria-label={`Fixada: "${lista.nome}"`}
-          className="flex min-w-11 items-center justify-center text-lg text-foreground"
-        >
-          <span aria-hidden="true">📌</span>
-        </span>
-      ) : null}
     </li>
   );
 }

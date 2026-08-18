@@ -58,7 +58,15 @@ function newListaIds(qtd: number): string[] {
 function nomesEmOrdem(): string[] {
   return screen
     .getAllByRole("link")
-    .map((a) => a.querySelector("span")?.textContent?.trim() ?? "")
+    .map((a) => {
+      // o primeiro <span> dentro do link contém nome (+ pin quando fixada);
+      // o pin fica num <span> interno — pegamos só o primeiro text node.
+      const outer = a.querySelector("span");
+      if (!outer) return "";
+      const pin = outer.querySelector("span[aria-label]");
+      if (pin) pin.remove();
+      return outer.textContent?.trim() ?? "";
+    })
     .filter((n) => n.startsWith("Lista "));
 }
 
