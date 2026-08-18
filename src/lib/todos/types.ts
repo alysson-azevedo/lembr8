@@ -24,12 +24,22 @@ export type AddOutcome =
   | { kind: "reactivated"; item: Item }
   | { kind: "duplicate"; existingId: string };
 
-/** Entrada do índice de listas com a contagem de a-fazer. */
+/** Entrada do índice de listas com a contagem de a-fazer e o estado de fixação (LB-14). */
 export type ListaIndex = {
   id: string;
   nome: string;
   aFazer: number;
+  /** `true` se a lista está fixada (aparece na seção Fixadas do índice). */
+  pinned: boolean;
 };
+
+/**
+ * Lista com estado de fixação (LB-14) — exposto no snapshot da tela da lista
+ * (`useLista`) para a UI ler `pinned` (texto do menu overflow). `pinned` vive no
+ * registro persistido (`ListRecordLocal`); o tipo base `Lista` permanece sem ele
+ * para não poluir funções puras que só lidam com `nome` (ex.: `nextListaName`).
+ */
+export type ListaDetalhe = Lista & { pinned: boolean };
 
 /**
  * Tombstone local de exclusão (LB-8, ADR 2026-08-14): ids excluídos no cache
@@ -46,10 +56,17 @@ export interface ListasRepository {
   listListas(): Lista[];
   /** Índice de listas com contagem de a-fazer (para a tela `/`). */
   listIndex(): ListaIndex[];
-  /** Lista pelo id, ou `null` se não existir. */
-  getLista(id: string): Lista | null;
+  /** Lista pelo id (com `pinned`), ou `null` se não existir. */
+  getLista(id: string): ListaDetalhe | null;
   /** Itens da lista em ordem de exibição: a-fazer (inserção) ++ concluídos (conclusão). */
   listItems(listId: string): Item[];
+  /**
+   * Textos sugeridos para autocomplete ao digitar um novo item (LB-13): itens de
+   * **todas** as listas da conta, dedup por texto normalizado mantendo o mais
+   * recente, casamento por prefixo insensível a acento/caixa, ordenados por
+   * `updatedAt` desc, limitado a `limit`. Lê do cache; sem chamada ao Supabase.
+   */
+  listItemSuggestions(query: string, limit: number): string[];
   /** Cria uma lista com o nome dado e a retorna. */
   createList(nome: string): Lista;
   /** Renomeia a lista; no-op se não existir. */
@@ -62,6 +79,8 @@ export interface ListasRepository {
   deleteItem(id: string): void;
   /** Hard delete da lista em cascade: remove a lista e seus itens do cache e marca os ids. */
   deleteLista(id: string): void;
+  /** Alterna o estado de fixação (`pinned`) da lista (toggle, LB-14). Mutação: bumpa `updated_at` e enfileira pending. */
+  togglePinLista(id: string): void;
   /** Sincroniza com o cloud (push dos pendentes + pull/merge por `updated_at`). */
   sync(): Promise<{ pushed: number; pulled: number }>;
   /** Reinicia o cache para outra conta (isolamento no login/logout). */

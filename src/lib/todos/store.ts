@@ -6,6 +6,7 @@ import type {
   AddOutcome,
   Item,
   Lista,
+  ListaDetalhe,
   ListaIndex,
   ListasRepository,
 } from "./types";
@@ -13,8 +14,9 @@ import type {
 /**
  * Ponte client-only entre a UI e a camada única de acesso aos dados (LB-5).
  * A UI consome `useListas` / `useLista` / `createList` / `renameList` /
- * `addItemToLista` / `toggleItem` — nunca acessa `localStorage` ou o
- * repositório diretamente. `useSyncExternalStore` lê o storage só no cliente
+ * `addItemToLista` / `toggleItem` / `togglePinLista` (LB-14) — nunca acessa
+ * `localStorage` ou o repositório diretamente. `useSyncExternalStore` lê o
+ * storage só no cliente
  * (após hidratação), evitando acesso ao `localStorage` durante a renderização
  * no servidor e mismatch de hidratação.
  *
@@ -26,6 +28,7 @@ import type {
 const listeners = new Set<() => void>();
 const EMPTY_INDEX: ListaIndex[] = [];
 const EMPTY_ITEMS: Item[] = [];
+const EMPTY_STRINGS: string[] = [];
 
 // Ouvintes de mutação (LB-7): disparam só em create/rename/add/toggle, usados
 // pelo SyncController para o trigger de sync pós-mutação (debounced). Separados
@@ -33,7 +36,7 @@ const EMPTY_ITEMS: Item[] = [];
 // sync()/resetForUser(), o que re-acionaria o trigger em loop.
 const mutationListeners = new Set<() => void>();
 
-type ListaScreen = { lista: Lista | null; aFazer: Item[]; concluidos: Item[] };
+type ListaScreen = { lista: ListaDetalhe | null; aFazer: Item[]; concluidos: Item[] };
 const EMPTY_SCREEN: ListaScreen = {
   lista: null,
   aFazer: EMPTY_ITEMS,
@@ -77,11 +80,18 @@ function bumpVersion(): void {
   version += 1;
   indexCache = null;
   screenCache = null;
+  suggestionsCache = null;
 }
 
 let indexCache: { version: number; data: ListaIndex[] } | null = null;
 let screenCache: { version: number; listId: string; data: ListaScreen } | null =
   null;
+let suggestionsCache: {
+  version: number;
+  query: string;
+  limit: number;
+  data: string[];
+} | null = null;
 
 /** Índice de listas com contagem de a-fazer (tela `/`). */
 export function useListas(): ListaIndex[] {
@@ -126,6 +136,34 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
+/**
+ * Sugestões de autocomplete para o campo de novo item (LB-13): itens de todas
+ * as listas da conta, mais recente primeiro (`updatedAt` desc), casamento por
+ * prefixo insensível a acento/caixa, ≤`limit` (default 6). Lê só do cache (sem
+ * Supabase). Memoizado por `(version, query, limit)` para manter referência
+ * estável entre renders (requisito do `useSyncExternalStore`); invalidado em
+ * toda mutação/sync/reset via `bumpVersion`.
+ */
+export function useItemSuggestions(query: string, limit = 6): string[] {
+  return useSyncExternalStore(
+    subscribe,
+    () => {
+      if (
+        suggestionsCache &&
+        suggestionsCache.version === version &&
+        suggestionsCache.query === query &&
+        suggestionsCache.limit === limit
+      ) {
+        return suggestionsCache.data;
+      }
+      const data = repoInstance().listItemSuggestions(query, limit);
+      suggestionsCache = { version, query, limit, data };
+      return data;
+    },
+    () => EMPTY_STRINGS,
+  );
+}
+
 /** `true` após a hidratação no cliente; adia o estado vazio para evitar flash. */
 export function useHydrated(): boolean {
   return useSyncExternalStore(
@@ -149,6 +187,14 @@ export function createList(): Lista {
 /** Renomeia uma lista e notifica a UI. */
 export function renameList(id: string, nome: string): void {
   repoInstance().renameList(id, nome);
+  bumpVersion();
+  notify();
+  notifyMutations();
+}
+
+/** Alterna (fixa/desfixa) uma lista e notifica a UI. LB-14. */
+export function togglePinLista(id: string): void {
+  repoInstance().togglePinLista(id);
   bumpVersion();
   notify();
   notifyMutations();
@@ -220,4 +266,5 @@ export function __resetListasStoreForTests(): void {
   version = 0;
   indexCache = null;
   screenCache = null;
+  suggestionsCache = null;
 }

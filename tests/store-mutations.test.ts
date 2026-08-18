@@ -3,6 +3,7 @@ import type {
   AddOutcome,
   Item,
   Lista,
+  ListaDetalhe,
   ListasRepository,
 } from "@/lib/todos/types";
 
@@ -15,7 +16,7 @@ import type {
 
 // Repo em memória, sem cloud. `sync`/`resetForUser` são no-ops espiados.
 function fakeRepo(): ListasRepository {
-  let lists: Lista[] = [];
+  let lists: ListaDetalhe[] = [];
   let items: Item[] = [];
   return {
     listListas: () => [...lists],
@@ -23,17 +24,22 @@ function fakeRepo(): ListasRepository {
       lists.map((l) => ({
         id: l.id,
         nome: l.nome,
+        pinned: l.pinned,
         aFazer: items.filter((i) => i.listId === l.id && !i.concluido).length,
       })),
     getLista: (id) => lists.find((l) => l.id === id) ?? null,
     listItems: (listId) => items.filter((i) => i.listId === listId),
+    listItemSuggestions: () => [],
     createList: (nome) => {
-      const l: Lista = { id: crypto.randomUUID(), nome };
+      const l: ListaDetalhe = { id: crypto.randomUUID(), nome, pinned: false };
       lists = [...lists, l];
       return l;
     },
     renameList: (id, nome) => {
       lists = lists.map((l) => (l.id === id ? { ...l, nome } : l));
+    },
+    togglePinLista: (id) => {
+      lists = lists.map((l) => (l.id === id ? { ...l, pinned: !l.pinned } : l));
     },
     addItem: (listId, texto) => {
       const it: Item = {
@@ -84,6 +90,7 @@ import {
   subscribeToMutations,
   sync,
   toggleItem,
+  togglePinLista,
 } from "@/lib/todos/store";
 
 beforeEach(() => {
@@ -126,6 +133,15 @@ describe("subscribeToMutations — dispara em mutações (AC 1)", () => {
     };
     calls = 0;
     toggleItem(item.id);
+    expect(calls).toBe(1);
+  });
+
+  it("togglePinLista notifica o listener (LB-14 — mutação dispara sync)", () => {
+    let calls = 0;
+    subscribeToMutations(() => calls++);
+    const l = createList();
+    calls = 0;
+    togglePinLista(l.id);
     expect(calls).toBe(1);
   });
 });
