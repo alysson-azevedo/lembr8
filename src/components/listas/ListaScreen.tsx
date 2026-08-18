@@ -136,7 +136,14 @@ export function ListaScreen({ listId }: { listId: string }) {
               onClick={startEdit}
               title="Toque para renomear"
             >
-              {lista.nome}
+              <span className="flex items-center gap-1">
+                {lista.nome}
+                {lista.pinned ? (
+                  <span aria-label={`Fixada: "${lista.nome}"`} className="text-xl align-middle">
+                    <span aria-hidden="true">📌</span>
+                  </span>
+                ) : null}
+              </span>
             </h1>
           )}
 
