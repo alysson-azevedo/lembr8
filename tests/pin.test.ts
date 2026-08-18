@@ -278,12 +278,12 @@ describe("Sync cross-device do pinned via merge por updated_at (AC 11)", () => {
     // local não-fixada, cloud fixada e MAIS recente → cloud vence.
     const outCloudWin = mergeCache(
       {
-        lists: [{ id: "l1", nome: "L", pinned: false, createdAt: T0, updatedAt: T0 }],
+        lists: [{ id: "l1", nome: "L", pinned: false, archivedAt: null, createdAt: T0, updatedAt: T0 }],
         items: [],
         pending: [],
       },
       {
-        lists: [{ id: "l1", nome: "L", pinned: true, created_at: T0, updated_at: T2 }],
+        lists: [{ id: "l1", nome: "L", pinned: true, archived_at: null, created_at: T0, updated_at: T2 }],
         items: [],
       },
     );
@@ -292,12 +292,12 @@ describe("Sync cross-device do pinned via merge por updated_at (AC 11)", () => {
     // local fixada e MAIS recente que o cloud → local vence e fica pending.
     const outLocalWin = mergeCache(
       {
-        lists: [{ id: "l1", nome: "L", pinned: true, createdAt: T0, updatedAt: T2 }],
+        lists: [{ id: "l1", nome: "L", pinned: true, archivedAt: null, createdAt: T0, updatedAt: T2 }],
         items: [],
         pending: [],
       },
       {
-        lists: [{ id: "l1", nome: "L", pinned: false, created_at: T0, updated_at: T1 }],
+        lists: [{ id: "l1", nome: "L", pinned: false, archived_at: null, created_at: T0, updated_at: T1 }],
         items: [],
       },
     );
@@ -310,6 +310,7 @@ describe("Sync cross-device do pinned via merge por updated_at (AC 11)", () => {
       id: "l1",
       nome: "Cloud",
       pinned: true,
+      archived_at: null,
       created_at: T0,
       updated_at: T0,
     };
@@ -346,7 +347,7 @@ describe("Migração v4 → v5: pinned aditivo default false (AC 12)", () => {
     expect(v5.deletedIds).toEqual({ lists: [], items: [] });
   });
 
-  it("cache v4 legado é migrado para v5 ao carregar, sem fixar listas (AC 12)", () => {
+  it("cache v4 legado é migrado para v6 ao carregar, sem fixar listas (AC 12)", () => {
     const storage = memoryStorage();
     storage.setItem(
       "lembr8.data",
@@ -370,12 +371,14 @@ describe("Migração v4 → v5: pinned aditivo default false (AC 12)", () => {
       userId: "user-a",
       clock: tickClock(),
     });
-    // nenhuma lista fixada após o upgrade (a migração v4→v5 é lazy em memória).
+    // nenhuma lista fixada após o upgrade (a migração v4→v5→v6 é lazy em memória).
     expect(r.listIndex().every((l) => l.pinned === false)).toBe(true);
-    // uma mutação persiste o v5 no disco.
+    // uma mutação persiste o v6 no disco.
     r.renameList("l1", "Lista 1");
     const raw = JSON.parse(storage.getItem("lembr8.data")!);
-    expect(raw.version).toBe(5);
+    expect(raw.version).toBe(6);
     expect(raw.lists.every((l: { pinned: boolean }) => l.pinned === false)).toBe(true);
+    // LB-16: archivedAt também é migrado (default null — nenhuma lista arquivada).
+    expect(raw.lists.every((l: { archivedAt: string | null }) => l.archivedAt === null)).toBe(true);
   });
 });
