@@ -2,7 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const pushMock = vi.fn();
 const replaceMock = vi.fn();
@@ -54,11 +54,12 @@ function newListaIds(qtd: number): string[] {
   return ids;
 }
 
-/** Devolve o `<section>` cujo header (texto) é `header`. */
-function sectionByHeader(header: string): HTMLElement {
-  const h = screen.getByText(header);
-  // o <p> do header fica dentro do <section>.
-  return h.closest("section")!;
+/** Nomes das listas na ordem em que aparecem no índice (topo → fim). */
+function nomesEmOrdem(): string[] {
+  return screen
+    .getAllByRole("link")
+    .map((a) => a.querySelector("span")?.textContent?.trim() ?? "")
+    .filter((n) => n.startsWith("Lista "));
 }
 
 describe("ListasIndex — botão de fixar na linha (AC 3, LB-4 touch)", () => {
@@ -84,39 +85,31 @@ describe("ListasIndex — botão de fixar na linha (AC 3, LB-4 touch)", () => {
   });
 });
 
-describe("ListasIndex — toggle fixar/desfixar move entre seções (AC 1, 2, 5)", () => {
-  it("fixar uma não-fixada move para a seção Fixadas imediatamente (AC 1)", async () => {
+describe("ListasIndex — toggle fixar/desfixar reordena o índice (AC 1, 2, 5)", () => {
+  it("fixar uma não-fixada move para o topo imediatamente (AC 1)", async () => {
     newListaIds(2);
     render(<ListasIndex />);
     await screen.findByText("Lista 1");
-    // inicialmente sem fixadas → sem headers.
-    expect(screen.queryByText("Fixadas")).toBeNull();
-    expect(screen.queryByText("Demais")).toBeNull();
+    // inicialmente por updated_at desc: Lista 2 (criada depois) no topo.
+    expect(nomesEmOrdem()).toEqual(["Lista 2", "Lista 1"]);
 
     fireEvent.click(screen.getByLabelText('Fixar "Lista 1"'));
-    // agora coexistem → headers aparecem, Fixadas acima de Demais (AC 5).
-    const fixadas = screen.getByText("Fixadas");
-    const demais = screen.getByText("Demais");
-    expect(fixadas.compareDocumentPosition(demais)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
-    // Lista 1 está na seção Fixadas; Lista 2 na Demais.
-    expect(within(sectionByHeader("Fixadas")).getByText("Lista 1")).toBeInTheDocument();
-    expect(within(sectionByHeader("Demais")).getByText("Lista 2")).toBeInTheDocument();
+    // fixadas vêm primeiro — Lista 1 no topo, depois Lista 2 (AC 5).
+    expect(nomesEmOrdem()).toEqual(["Lista 1", "Lista 2"]);
     // o botão agora anuncia "Desfixar" (AC 3).
     expect(screen.getByLabelText('Desfixar "Lista 1"')).toBeInTheDocument();
   });
 
-  it("desfixar devolve à seção Demais imediatamente (AC 2)", async () => {
+  it("desfixar devolve à posição por updated_at imediatamente (AC 2)", async () => {
     newListaIds(2);
     render(<ListasIndex />);
     await screen.findByText("Lista 1");
     fireEvent.click(screen.getByLabelText('Fixar "Lista 1"')); // fixa
     fireEvent.click(screen.getByLabelText('Desfixar "Lista 1"')); // desfixa
-    // voltou a não coexistir → sem headers.
+    // sem headers — índice único em sequência.
     expect(screen.queryByText("Fixadas")).toBeNull();
     expect(screen.queryByText("Demais")).toBeNull();
-    // ambas as listas presentes no índice flat.
+    // ambas as listas presentes.
     expect(screen.getByText("Lista 1")).toBeInTheDocument();
     expect(screen.getByText("Lista 2")).toBeInTheDocument();
     expect(screen.getByLabelText('Fixar "Lista 1"')).toBeInTheDocument();
@@ -133,8 +126,8 @@ describe("ListasIndex — toggle fixar/desfixar move entre seções (AC 1, 2, 5)
   });
 });
 
-describe("ListasIndex — headers condicionais (AC 14)", () => {
-  it("sem fixadas: índice flat, sem headers 'Fixadas'/'Demais'", async () => {
+describe("ListasIndex — índice em sequência, sem headers (AC 14)", () => {
+  it("sem fixadas: índice em sequência, sem headers 'Fixadas'/'Demais'", async () => {
     newListaIds(2);
     render(<ListasIndex />);
     await screen.findByText("Lista 1");
@@ -142,13 +135,13 @@ describe("ListasIndex — headers condicionais (AC 14)", () => {
     expect(screen.queryByText("Demais")).toBeNull();
   });
 
-  it("todas fixadas: só Fixadas, sem header 'Demais'", async () => {
+  it("todas fixadas: índice em sequência, sem headers", async () => {
     newListaIds(2);
     render(<ListasIndex />);
     await screen.findByText("Lista 1");
     fireEvent.click(screen.getByLabelText('Fixar "Lista 1"'));
     fireEvent.click(screen.getByLabelText('Fixar "Lista 2"'));
-    expect(screen.queryByText("Fixadas")).toBeNull(); // só uma seção → sem header
+    expect(screen.queryByText("Fixadas")).toBeNull();
     expect(screen.queryByText("Demais")).toBeNull();
     expect(screen.getByText("Lista 1")).toBeInTheDocument();
     expect(screen.getByText("Lista 2")).toBeInTheDocument();
@@ -163,9 +156,9 @@ describe("ListasIndex — persistência do pinned entre remontagens (AC 10)", ()
     fireEvent.click(screen.getByLabelText('Fixar "Lista 1"'));
     unmount();
     render(<ListasIndex />);
-    // ao reabrir, Lista 1 continua fixada (header presente).
-    await screen.findByText("Fixadas");
-    expect(within(sectionByHeader("Fixadas")).getByText("Lista 1")).toBeInTheDocument();
+    // ao reabrir, Lista 1 continua fixada — no topo do índice.
+    await screen.findByText("Lista 1");
+    expect(nomesEmOrdem()[0]).toBe("Lista 1");
   });
 });
 
@@ -218,8 +211,8 @@ describe("ListaScreen — item 'Fixar/Desfixar lista' no menu overflow (AC 3, 4)
     fireEvent.click(screen.getByRole("menuitem", { name: "Fixar lista" }));
     cleanup();
     render(<ListasIndex />);
-    await screen.findByText("Fixadas");
-    // a lista fixada pelo detalhe está na seção Fixadas do índice.
-    expect(within(sectionByHeader("Fixadas")).getByText("Lista 1")).toBeInTheDocument();
+    await screen.findByText("Lista 1");
+    // a lista fixada pelo detalhe está no topo do índice.
+    expect(nomesEmOrdem()[0]).toBe("Lista 1");
   });
 });
