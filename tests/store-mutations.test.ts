@@ -31,7 +31,7 @@ function fakeRepo(): ListasRepository {
     listItems: (listId) => items.filter((i) => i.listId === listId),
     listItemSuggestions: () => [],
     createList: (nome) => {
-      const l: ListaDetalhe = { id: crypto.randomUUID(), nome, pinned: false };
+      const l: ListaDetalhe = { id: crypto.randomUUID(), nome, pinned: false, archived: false };
       lists = [...lists, l];
       return l;
     },
@@ -40,6 +40,21 @@ function fakeRepo(): ListasRepository {
     },
     togglePinLista: (id) => {
       lists = lists.map((l) => (l.id === id ? { ...l, pinned: !l.pinned } : l));
+    },
+    listArchivedIndex: () =>
+      lists
+        .filter((l) => l.archived)
+        .map((l) => ({
+          id: l.id,
+          nome: l.nome,
+          pinned: l.pinned,
+          aFazer: items.filter((i) => i.listId === l.id && !i.concluido).length,
+        })),
+    archiveLista: (id) => {
+      lists = lists.map((l) => (l.id === id ? { ...l, archived: true } : l));
+    },
+    unarchiveLista: (id) => {
+      lists = lists.map((l) => (l.id === id ? { ...l, archived: false } : l));
     },
     addItem: (listId, texto) => {
       const it: Item = {

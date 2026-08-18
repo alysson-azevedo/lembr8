@@ -6,6 +6,7 @@ import {
   createList,
   useHydrated,
   useListas,
+  useTemArquivadas,
 } from "@/lib/todos/store";
 import type { ListaIndex } from "@/lib/todos/types";
 
@@ -15,11 +16,14 @@ import type { ListaIndex } from "@/lib/todos/types";
  * todas por modificação mais recente (`updated_at` desc) — ordem entregue pronta
  * pelo `listIndex()`. O pin só aparece em listas fixadas (indicador visual);
  * fixar/desfixar é feito no menu overflow "⋮" do detalhe (`ListaScreen`). A
- * exclusão de lista NÃO é exposta aqui (rework LB-8). Consome só o `store`
+ * exclusão de lista NÃO é exposta aqui (rework LB-8). Listas arquivadas não
+ * aparecem (LB-16: `listIndex()` filtra `archivedAt !== null`); a entrada
+ * "Arquivadas" no rodapé leva à rota `/arquivadas`. Consome só o `store`
  * (camada única de acesso aos dados).
  */
 export function ListasIndex() {
   const listas = useListas();
+  const temArquivadas = useTemArquivadas();
   const hydrated = useHydrated();
   const router = useRouter();
 
@@ -36,7 +40,7 @@ export function ListasIndex() {
         Nova lista
       </button>
 
-      {hydrated && listas.length === 0 ? (
+      {hydrated && listas.length === 0 && !temArquivadas ? (
         <p className="mt-4 text-base text-muted">
           Nenhuma lista ainda. Toque em &lsquo;Nova lista&rsquo; para começar.
         </p>
@@ -48,6 +52,17 @@ export function ListasIndex() {
             <Linha key={lista.id} lista={lista} />
           ))}
         </ul>
+      ) : null}
+
+      {hydrated && temArquivadas ? (
+        <p className="mt-6 text-base">
+          <Link
+            href="/arquivadas"
+            className="text-muted underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Arquivadas
+          </Link>
+        </p>
       ) : null}
     </div>
   );

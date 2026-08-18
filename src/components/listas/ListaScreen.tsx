@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   addItemToLista,
+  archiveLista,
   deleteItem,
   deleteLista,
   renameList,
   toggleItem,
   togglePinLista,
+  unarchiveLista,
   useHydrated,
   useItemSuggestions,
   useLista,
@@ -29,7 +31,8 @@ import type { Item, Lista } from "@/lib/todos/types";
  */
 type Confirmacao =
   | { tipo: "item"; alvo: Item }
-  | { tipo: "lista"; alvo: Lista };
+  | { tipo: "lista"; alvo: Lista }
+  | { tipo: "archive"; alvo: Lista };
 
 export function ListaScreen({ listId }: { listId: string }) {
   const { lista, aFazer, concluidos } = useLista(listId);
@@ -130,22 +133,44 @@ export function ListaScreen({ listId }: { listId: string }) {
     if (!confirmacao) return;
     if (confirmacao.tipo === "item") {
       deleteItem(confirmacao.alvo.id);
-    } else {
+    } else if (confirmacao.tipo === "lista") {
       deleteLista(confirmacao.alvo.id);
       // O usuário estava dentro da lista excluída: volta ao índice (LB-8 §2.2).
       router.replace("/");
+    } else if (confirmacao.tipo === "archive") {
+      archiveLista(confirmacao.alvo.id);
+      // Arquivar não redireciona: o usuário permanece na tela da lista; o menu
+      // agora lê "Desarquivar lista" e a lista some do índice ao voltar (LB-16).
     }
     setConfirmacao(null);
   }
 
-  const tituloConfirmacao = confirmacao?.tipo === "item" ? "Excluir item?" : "Excluir lista?";
+  const tituloConfirmacao =
+    confirmacao?.tipo === "item"
+      ? "Excluir item?"
+      : confirmacao?.tipo === "lista"
+        ? "Excluir lista?"
+        : confirmacao?.tipo === "archive"
+          ? "Arquivar lista?"
+          : "";
   const descricaoConfirmacao =
     confirmacao?.tipo === "item"
       ? `Excluir "${confirmacao.alvo.texto}" da lista? Esta ação não pode ser desfeita.`
       : confirmacao?.tipo === "lista"
         ? `Excluir "${confirmacao.alvo.nome}" e todos os seus itens? Esta ação não pode ser desfeita.`
-        : "";
-  const labelConfirmacao = confirmacao?.tipo === "item" ? "Excluir" : "Excluir lista";
+        : confirmacao?.tipo === "archive"
+          ? `Arquivar "${confirmacao.alvo.nome}"? Ela sairá da tela inicial e ficará em Arquivadas. Você pode desarquivar a qualquer momento.`
+          : "";
+  const labelConfirmacao =
+    confirmacao?.tipo === "item"
+      ? "Excluir"
+      : confirmacao?.tipo === "lista"
+        ? "Excluir lista"
+        : confirmacao?.tipo === "archive"
+          ? "Arquivar"
+          : "";
+  // Apenas excluir item/lista é destrutivo (vermelho); arquivar é aviso (não destrutivo).
+  const destructive = confirmacao?.tipo === "item" || confirmacao?.tipo === "lista";
 
   return (
     <div className="mt-6">
@@ -240,6 +265,26 @@ export function ListaScreen({ listId }: { listId: string }) {
                       className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-foreground hover:bg-current/5"
                     >
                       <span aria-hidden="true">🔗</span> Copiar link
+                    </button>
+                    {/* LB-16 — Arquivar/Desarquivar (não destrutivo, toggle — texto
+                        reflete o estado). Arquivar abre o ConfirmDialog (aviso);
+                        desarquivar é sem confirmação (reversão trivial, padrão de
+                        fixar LB-14). */}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuAberto(false);
+                        if (lista.archived) {
+                          unarchiveLista(lista.id);
+                        } else {
+                          setConfirmacao({ tipo: "archive", alvo: lista });
+                        }
+                      }}
+                      className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-foreground hover:bg-current/5"
+                    >
+                      <span aria-hidden="true">🗃️</span>{" "}
+                      {lista.archived ? "Desarquivar lista" : "Arquivar lista"}
                     </button>
                     {/* Excluir lista (destrutivo, vermelho — LB-8). */}
                     <button
@@ -411,7 +456,7 @@ export function ListaScreen({ listId }: { listId: string }) {
         title={tituloConfirmacao}
         description={descricaoConfirmacao}
         confirmLabel={labelConfirmacao}
-        destructive
+        destructive={destructive}
         onConfirm={confirmarExclusao}
         onCancel={() => setConfirmacao(null)}
       />
