@@ -19,16 +19,19 @@ import type { ListaIndex } from "@/lib/todos/types";
  * exclusão de lista NÃO é exposta aqui (rework LB-8). Consome só o `store`
  * (camada única de acesso aos dados).
  *
- * Filtro por nome (LB-17, PR1): campo `type="search"` no topo do índice,
- * case-insensitive por substring, sem debounce (filtragem client-side
- * instantânea). Estado local efêmero (não persiste) — ver
- * `docs/product/design/lb-17-filtro-listas.md`. O toggle "exibir arquivadas"
- * (PR2) depende de LB-16 e fica pendente.
+ * Filtro por nome (LB-17, PR1 — rework affordance expansível): botão-ícone `🔍`
+ * no topo (estado fechado, mínimo espaço) → ao clicar, expande `<input
+ * type="search">` com autoFocus + botão `✕` para fechar (animação CSS ~150ms).
+ * Case-insensitive por substring, sem debounce. Estados `filtroAberto` e
+ * `filtroNome` são efêmeros (não persistem). Fechar (`✕` ou `Escape`) limpa o
+ * texto. Ver `docs/product/design/lb-17-filtro-listas.md`. O toggle "exibir
+ * arquivadas" (PR2) depende de LB-16 e fica pendente.
  */
 export function ListasIndex() {
   const listas = useListas();
   const hydrated = useHydrated();
   const router = useRouter();
+  const [filtroAberto, setFiltroAberto] = useState(false);
   const [filtroNome, setFiltroNome] = useState("");
 
   const visiveis = useMemo(() => {
@@ -37,18 +40,51 @@ export function ListasIndex() {
     return listas.filter((l) => l.nome.toLowerCase().includes(q));
   }, [listas, filtroNome]);
 
+  function fecharFiltro() {
+    setFiltroAberto(false);
+    setFiltroNome("");
+  }
+
   return (
     <div className="mt-6">
       {listas.length > 0 ? (
-        <input
-          type="search"
-          inputMode="search"
-          value={filtroNome}
-          onChange={(e) => setFiltroNome(e.target.value)}
-          placeholder="Filtrar por nome"
-          aria-label="Filtrar listas por nome"
-          className="w-full min-h-11 rounded border border-current/20 bg-background px-3 py-2 text-base text-foreground placeholder:text-muted"
-        />
+        <div className="flex items-center gap-2">
+          {filtroAberto ? (
+            <div className="flex flex-1 items-center gap-2 overflow-hidden transition-all duration-150">
+              <input
+                type="search"
+                inputMode="search"
+                autoFocus
+                value={filtroNome}
+                onChange={(e) => setFiltroNome(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") fecharFiltro();
+                }}
+                placeholder="Filtrar por nome"
+                aria-label="Filtrar listas por nome"
+                className="flex-1 min-h-11 rounded border border-current/20 bg-background px-3 py-2 text-base text-foreground placeholder:text-muted"
+              />
+              <button
+                type="button"
+                onClick={fecharFiltro}
+                aria-label="Fechar filtro"
+                className="flex min-h-11 min-w-11 items-center justify-center text-base text-muted hover:text-foreground"
+              >
+                <span aria-hidden="true">✕</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setFiltroAberto(true)}
+              aria-label="Abrir filtro por nome"
+              aria-expanded={false}
+              className="flex min-h-11 min-w-11 items-center justify-center text-base text-foreground hover:bg-current/5"
+            >
+              <span aria-hidden="true">🔍</span>
+            </button>
+          )}
+        </div>
       ) : null}
 
       <button

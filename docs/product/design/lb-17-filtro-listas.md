@@ -26,39 +26,84 @@ Arquivos atuais relevantes: `src/components/listas/ListasIndex.tsx` (índice, al
 
 Os dois controles aparecem **acima** da lista (e do botão "Nova lista"), dentro do mesmo container `mt-6`. Eles só são renderizados quando há pelo menos uma lista (`listas.length > 0`) — em índice vazio, nem o campo nem o toggle aparecem (não há o que filtrar).
 
-### 1.1 Ordem vertical
+### 1.1 Ordem vertical (rework — affordance expansível, feedback PO)
 
+Estado fechado (default — prioriza a lista):
 ```
-[Campo de filtro por nome]        ← novo
-[☐ Exibir arquivadas]             ← novo (default off)
-[+ Nova lista]                    ← existente
-[lista filtrada...]               ← existente (renderização condicional)
+[＋ Nova lista]  [🔍]               ← botão "Nova lista" + botão-ícone de filtro
+[lista (índice)...]                 ← conteúdo prioritário
 ```
 
-O campo de filtro vem primeiro porque é a ação primária ("encontrar uma lista por nome"); o toggle é secundário ("quero ver também as arquivadas"). Ambos acima do botão "Nova lista" para manter a affordance de criação no rodapé visual do bloco de controles.
+Estado aberto (filtro ativo — botão-ícone clicado):
+```
+[Campo de filtro por nome]  [✕]     ← input expansível + botão fechar
+[☐ Exibir arquivadas]               ← novo (default off) — só aparece quando filtro aberto (PR2)
+[lista filtrada...]                 ← renderização condicional
+```
 
-### 1.2 Campo de filtro por nome
+**Racional (feedback PO):** no mobile, o input sempre visível + botão "Nova lista" roubam espaço vertical da lista, que é o conteúdo prioritário. O botão-ícone de filtro (🔍) ocupa mínimo espaço quando fechado; ao clicar, expande o campo com animação. O toggle "Exibir arquivadas" (PR2) só aparece quando o filtro está aberto — evita ruído quando o usuário só quer navegar.
+
+> **Nota:** o botão "Nova lista" compacto e o botão "Sair" → "[...]" são issues separadas (LB-19, LB-20) — fora do escopo de LB-17. Esta spec trata só do filtro.
+
+### 1.2 Botão-ícone de filtro + campo expansível (rework)
+
+#### 1.2.1 Botão-ícone (estado fechado)
+
+Quando o filtro está fechado, um botão com ícone `🔍` fica no topo do índice, ao lado do botão "Nova lista". Alvo `min-h-11 min-w-11` (44px, LB-4). Clicar abre o campo de filtro com animação.
 
 ```tsx
-<input
-  type="search"
-  inputMode="search"
-  value={filtroNome}
-  onChange={(e) => setFiltroNome(e.target.value)}
-  placeholder="Filtrar por nome"
-  aria-label="Filtrar listas por nome"
-  className="w-full min-h-11 rounded border border-current/20 bg-background px-3 py-2 text-base text-foreground placeholder:text-muted"
-/>
+<button
+  type="button"
+  onClick={() => setFiltroAberto(true)}
+  aria-label="Abrir filtro por nome"
+  aria-expanded={false}
+  className="flex min-h-11 min-w-11 items-center justify-center text-base text-foreground hover:bg-current/5"
+>
+  <span aria-hidden="true">🔍</span>
+</button>
 ```
 
-Detalhes:
+#### 1.2.2 Campo expansível (estado aberto)
+
+Quando `filtroAberto === true`, o botão-ícone é substituído por um `<input type="search">` que ocupa a largura total, com um botão `✕` à direita para fechar. Aparece com animação de altura/opacity (transition CSS curta, ~150ms).
+
+```tsx
+{filtroAberto ? (
+  <div className="flex items-center gap-2">
+    <input
+      type="search"
+      inputMode="search"
+      autoFocus
+      value={filtroNome}
+      onChange={(e) => setFiltroNome(e.target.value)}
+      placeholder="Filtrar por nome"
+      aria-label="Filtrar listas por nome"
+      className="flex-1 min-h-11 rounded border border-current/20 bg-background px-3 py-2 text-base text-foreground placeholder:text-muted"
+    />
+    <button
+      type="button"
+      onClick={() => { setFiltroAberto(false); setFiltroNome(""); }}
+      aria-label="Fechar filtro"
+      className="flex min-h-11 min-w-11 items-center justify-center text-base text-muted hover:text-foreground"
+    >
+      <span aria-hidden="true">✕</span>
+    </button>
+  </div>
+) : null}
+```
+
+#### 1.2.3 Detalhes
+
 - **`type="search"`** (não `text`): em mobile traz o botão "limpar" nativo no teclado e o ícone de lupa no iOS; em desktop alguns browsers renderizam um "✕" nativo no campo quando há texto. O `inputMode="search"` refina o teclado mobile.
+- **`autoFocus`**: ao abrir, o campo recebe foco automaticamente (pronto para digitar —economiza um toque no mobile).
 - **Placeholder** "Filtrar por nome" — descreve a ação, não um exemplo (mantém curto, cabe em mobile <320px sem truncar).
-- **Estado:** React state local (`useState("")`) — **não** persiste. Recarregar a página volta o campo vazio (a busca é efêmera por design — princípio 4).
+- **Estado:** dois states React locais: `filtroAberto: boolean` (default `false`) e `filtroNome: string` (default `""`). **Nenhum persiste** — recarregar a página volta ao estado fechado com campo vazio (busca efêmera por design — princípio 4).
+- **Fechar o filtro limpa o texto:** clicar em `✕` faz `setFiltroAberto(false)` **e** `setFiltroNome("")` (voltar ao estado fechado não pode deixar filtro fantasma ativo). Pressionar `Escape` no campo também fecha e limpa (padrão de UX search).
 - **Case-insensitive por substring** (AC 1): `lista.nome.toLowerCase().includes(filtroNome.trim().toLowerCase())`. Trim para ignorar espaços nas pontas; vazio após trim → casa tudo (sem filtro ativo).
-- **Sem debounce**: a lista é client-side e pequena (dezenas de listas, não milhares); filtrar a cada keystroke é instantâneo e dá feedback visual imediato. Debounce só seria necessário se a filtragem fosse remota — não é o caso.
-- **Estilo:** `min-h-11` (44px, LB-4), `border-current/20`, `bg-background`, `text-foreground`, `placeholder:text-muted` — mesmos tokens do botão "Nova lista" (`border-current/20`) e do input de item (consistência visual). Sem novo token.
-- **Acessibilidade:** `aria-label="Filtrar listas por nome"` (o placeholder sozinho não é acessível o suficiente); `type="search"` anuncia "campo de busca" ao leitor de tela.
+- **Sem debounce**: a lista é client-side e pequena (dezenas de listas, não milhares); filtrar a cada keystroke é instantâneo.
+- **Animação:** ao abrir/fechar, o container do filtro usa uma transition CSS curta (ex.: `transition-all duration-150` no `max-height`/`opacity`). Sem lib de animação. Sem animação no conteúdo da lista (ela só reage à filtragem).
+- **Estilo:** `min-h-11` (44px, LB-4) no botão-ícone e no campo; `border-current/20`, `bg-background`, `text-foreground`, `placeholder:text-muted` — mesmos tokens existentes. Sem novo token.
+- **Acessibilidade:** `aria-label` em ambos os botões ("Abrir filtro por nome" / "Fechar filtro"); `aria-expanded` no botão-ícone reflete o estado; `type="search"` anuncia "campo de busca" ao leitor de tela; `autoFocus` leva o foco ao campo ao abrir (leitor de tela anuncia o placeholder). Botões focáveis por teclado; `Escape` fecha o campo.
 
 ### 1.3 Toggle "Exibir arquivadas"
 
@@ -88,7 +133,7 @@ Detalhes:
 
 ### 1.4 Comportamento quando não há listas
 
-Índice vazio (`listas.length === 0`): nem o campo, nem o toggle, nem a lista são renderizados — só o botão "Nova lista" e o estado vazio existente ("Nenhuma lista ainda. Toque em 'Nova lista' para começar."). Filtros sem nada para filtrar seriam ruído.
+Índice vazio (`listas.length === 0`): nem o botão-ícone de filtro, nem o campo (mesmo que aberto), nem o toggle, nem a lista são renderizados — só o botão "Nova lista" e o estado vazio existente ("Nenhuma lista ainda. Toque em 'Nova lista' para começar."). Filtros sem nada para filtrar seriam ruído.
 
 ---
 
@@ -186,18 +231,19 @@ Helpers locais em `ListasIndex.tsx` (ou em `src/lib/todos/preferences.ts` se o D
 
 | Estado | Comportamento |
 | ------ | ------------- |
-| **Sem filtro, toggle off** (default) | índice completo, só listas ativas (todas, se LB-16 não implementado); igual ao comportamento atual |
-| **Filtro ativo, toggle off** | só listas ativas cujo nome casa; ordenação Fixadas→Demais preservada sobre o subconjunto |
-| **Sem filtro, toggle on** | todas as listas (ativas + arquivadas); arquivadas aparecem intercaladas por `updated_at` desc dentro de cada seção (sem separador visual entre arquivadas e ativas — são listas, só happen de ter `archived=true`) |
-| **Filtro ativo, toggle on** | listas (ativas + arquivadas) cujo nome casa |
-| **Filtro sem resultados** (`visiveis.length === 0`, `listas.length > 0`) | mensagem "Nenhuma lista encontrada com esse nome." em `text-muted` |
-| **Índice vazio** (`listas.length === 0`) | controles não renderizados; estado vazio existente ("Nenhuma lista ainda...") |
-| **Todas as listas arquivadas, toggle off** | `visiveis` vazio → mensagem "Nenhuma lista encontrada com esse nome." (mesmo com filtro vazio — porque nenhuma ativa casa). Usuário precisa ligar o toggle para ver algo. |
-| **Recarregar a página** | filtro volta vazio (não persiste); toggle volta ao valor salvo em `localStorage` (persiste) |
-| **Offline** | filtros funcionam sobre o cache local (a filtragem é client-side puro); sync ao reconectar (LB-6/LB-7) atualiza `listas` e a view reage |
-| **LB-16 não implementado** | `archived` é sempre `false` (default do tipo) → o toggle não tem efeito visível (liga/desliga mas nenhuma lista é filtrada por arquivamento, porque nenhuma está arquivada). O filtro por nome funciona normalmente. **Ver §7.** |
+| **Filtro fechado, sem texto** (default) | botão-ícone `🔍` visível; índice completo, só listas ativas (todas, se LB-16 não implementado); igual ao comportamento atual |
+| **Filtro aberto, sem texto** | campo `type="search"` visível com `autoFocus`; índice completo (não filtra até digitar) |
+| **Filtro aberto, texto ativo** | só listas cujo nome casa (case-insensitive, substring); ordenação Fixadas→Demais preservada sobre o subconjunto |
+| **Filtro fechado via `✕`** | campo some (animação), `filtroNome` limpa, índice volta completo |
+| **Filtro aberto, sem resultados** (`visiveis.length === 0`, `listas.length > 0`) | mensagem "Nenhuma lista encontrada com esse nome." em `text-muted` abaixo do campo aberto |
+| **Índice vazio** (`listas.length === 0`) | nenhum controle renderizado (nem botão-ícone); estado vazio existente ("Nenhuma lista ainda...") |
+| **Recarregar a página** | filtro volta fechado e vazio (não persiste) |
+| **Offline** | filtro funciona sobre o cache local (client-side puro); sync ao reconectar (LB-6/LB-7) atualiza `listas` e a view reage |
+| **LB-16 não implementado** | `archived` sempre `false` → toggle não tem efeito visível (PR2 pendente). O filtro por nome funciona normalmente. **Ver §7.** |
 
-**Acessibilidade:** campo com `aria-label`; label envolvendo checkbox (associação implícita); alvos `min-h-11`; fluxo operável por teclado (input focável, checkbox focável, tab order natural). Mensagem de "nenhuma encontrada" em `<p>` (leitor de tela lê).
+> Estados do toggle "exibir arquivadas" (PR2) detalhados em §3 — só relevantes quando LB-16 landar.
+
+**Acessibilidade:** botão-ícone com `aria-label` ("Abrir filtro por nome") e `aria-expanded` refletindo o estado; campo com `aria-label` + `autoFocus`; botão `✕` com `aria-label` ("Fechar filtro"); alvos `min-h-11`; fluxo operável por teclado (tab order: botão-ícone → campo → `✕`; `Escape` no campo fecha e limpa). Mensagem de "nenhuma encontrada" em `<p>` (leitor de tela lê).
 
 ---
 
@@ -299,21 +345,23 @@ Há trabalho de DEV que pode iniciar agora (o filtro por nome, §1.2 + §2 com `
 
 | Decisão | Escolha |
 | --- | --- |
-| Onde ficam os controles | **Índice** (`/`), no topo, acima do botão "Nova lista" — só quando há listas |
-| Ordem dos controles | Campo de filtro primeiro, toggle depois (ação primária > secundária) |
-| Campo de filtro | `<input type="search">`, placeholder "Filtrar por nome", state local (não persiste), case-insensitive por substring, sem debounce |
-| Toggle | `<input type="checkbox">` nativo dentro de `<label>`, texto "Exibir arquivadas", default off |
+| Onde fica o controle de filtro | **Índice** (`/`), no topo — só quando há listas |
+| Affordance do filtro (rework) | Botão-ícone `🔍` (estado fechado, mínimo espaço) → campo `<input type="search">` expansível com `autoFocus` + botão `✕` para fechar (animação CSS ~150ms) |
+| States do filtro | `filtroAberto: boolean` (default `false`) + `filtroNome: string` (default `""`); **nenhum persiste** |
+| Fechar o filtro | `✕` ou `Escape` → `setFiltroAberto(false)` + `setFiltroNome("")` (limpa) |
+| Toggle "Exibir arquivadas" (PR2) | `<input type="checkbox">` nativo dentro de `<label>`, texto "Exibir arquivadas", default off — só visível quando filtro aberto |
 | Combinação | AND: `casaNome && (!l.archived \|\| exibirArquivadas)` |
-| Persistência | Toggle em `localStorage` (`lembr8:preferencia:exibir-arquivadas`, `"1"`/`"0"`); filtro **não** persiste (efêmero) |
+| Persistência | Toggle em `localStorage` (`lembr8:preferencia:exibir-arquivadas`, `"1"`/`"0"`); filtro **não** persiste (efêmero — fecha voltando ao default) |
 | Ordenação pós-filtro | mantida (Fixadas→Demais por `updated_at` desc, LB-14) — filtrar só oculta, não reordena |
 | Seções LB-14 | particionadas sobre `visiveis` (não sobre `listas`) — fixada arquivada com toggle off some das Fixadas |
-| Estado vazio do filtro | "Nenhuma lista encontrada com esse nome." (diferente do vazio do índice) |
-| Arquivadas visíveis | intercaladas por `updated_at` desc (sem seção separada, sem separador visual) |
+| Estado vazio do filtro | "Nenhuma lista encontrada com esse nome." (diferente do vazio do índice) — só quando filtro aberto e sem resultados |
+| Arquivadas visíveis (PR2) | intercaladas por `updated_at` desc (sem seção separada, sem separador visual) |
 | Confirmação | nenhuma (filtrar é não destrutivo, reversível) |
-| Feedback | imediato (filtragem client-side a cada keystroke; toggle flip instantâneo) |
-| Alvo/touch | `min-h-11` (44px, LB-4) no campo e no label do toggle |
+| Feedback | imediato (filtragem client-side a cada keystroke; animação ao abrir/fechar) |
+| Alvo/touch | `min-h-11 min-w-11` (44px, LB-4) no botão-ícone, no campo, no `✕` e no label do toggle |
 | Contrato UI↔store | `ListaIndex.archived: boolean` (introduzido por LB-16); UI filtra client-side |
 | Contrato UI↔localStorage | `lerPreferenciaArquivadas()` / `persistirPreferenciaArquivadas(v)` — helpers locais, **não** no store |
 | Forma do campo/migration/RLS/sync de `archived_at` | 🤖 DEV (escopo LB-16) |
-| Dependências/tokens | nenhum novo (sem Radix/HeadlessUI, sem novo token de cor) |
-| Decomposição vs. LB-16 | recomendação (B): filtro agora, toggle pós-LB-16 — decisão final de processo é PO/DEV |
+| Dependências/tokens | nenhum novo (sem Radix/HeadlessUI, sem novo token de cor, sem lib de animação) |
+| Decomposição vs. LB-16 | PR1 = filtro por nome (rework affordance expansível); PR2 = toggle pós-LB-16 |
+| Issues separadas (fora de escopo) | LB-19 (botão Nova lista compacto), LB-20 (Sair → `[...]`) |

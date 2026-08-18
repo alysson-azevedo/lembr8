@@ -58,30 +58,60 @@ function renomearLista(id: string, nome: string) {
   cleanup();
 }
 
-describe("ListasIndex — filtro por nome (LB-17 PR1, AC 1)", () => {
-  it("campo de filtro aparece apenas quando há listas", async () => {
+/** Abre o filtro (clica no botão-ícone 🔍) e devolve o input. */
+function abrirFiltro(): HTMLInputElement {
+  fireEvent.click(screen.getByLabelText("Abrir filtro por nome"));
+  return screen.getByLabelText("Filtrar listas por nome") as HTMLInputElement;
+}
+
+describe("ListasIndex — filtro por nome, affordance expansível (LB-17 PR1 rework)", () => {
+  it("botão-ícone de filtro aparece apenas quando há listas", async () => {
     render(<ListasIndex />);
     expect(
       await screen.findByText(/Nenhuma lista ainda/),
     ).toBeInTheDocument();
-    expect(screen.queryByLabelText("Filtrar listas por nome")).toBeNull();
+    expect(screen.queryByLabelText("Abrir filtro por nome")).toBeNull();
     cleanup();
 
-    // cria uma lista e re-renderiza
     const ids = newListaIds(1);
     expect(ids).toHaveLength(1);
     render(<ListasIndex />);
     expect(
-      await screen.findByLabelText("Filtrar listas por nome"),
+      await screen.findByLabelText("Abrir filtro por nome"),
     ).toBeInTheDocument();
+    // campo não está visível no estado fechado
+    expect(screen.queryByLabelText("Filtrar listas por nome")).toBeNull();
   });
 
-  it("campo de filtro é type=search com placeholder correto", async () => {
+  it("botão-ícone tem aria-expanded=false quando fechado", async () => {
     newListaIds(1);
     render(<ListasIndex />);
-    const input = await screen.findByLabelText("Filtrar listas por nome");
+    const botao = await screen.findByLabelText("Abrir filtro por nome");
+    expect(botao).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("clicar no botão-ícone expande o campo com autoFocus", async () => {
+    newListaIds(1);
+    render(<ListasIndex />);
+    const input = abrirFiltro();
+    expect(input).toBeInTheDocument();
     expect(input).toHaveAttribute("type", "search");
     expect(input).toHaveAttribute("placeholder", "Filtrar por nome");
+    expect(input).toHaveFocus();
+    // botão-ícone some quando aberto
+    expect(screen.queryByLabelText("Abrir filtro por nome")).toBeNull();
+    // botão de fechar aparece
+    expect(screen.getByLabelText("Fechar filtro")).toBeInTheDocument();
+  });
+
+  it("clicar no botão-ícone muda aria-expanded para true", async () => {
+    newListaIds(1);
+    render(<ListasIndex />);
+    await screen.findByLabelText("Abrir filtro por nome");
+    fireEvent.click(screen.getByLabelText("Abrir filtro por nome"));
+    // quando aberto, o botão-ícone some; não há aria-expanded true visível
+    // porque o botão foi substituído pelo campo. Validamos pelo campo visível.
+    expect(screen.getByLabelText("Filtrar listas por nome")).toBeInTheDocument();
   });
 
   it("digitar parte do nome mostra apenas as listas que casam (substring)", async () => {
@@ -93,7 +123,7 @@ describe("ListasIndex — filtro por nome (LB-17 PR1, AC 1)", () => {
     await screen.findByText("Mercado");
     expect(screen.getByText("Farmácia")).toBeInTheDocument();
 
-    const input = screen.getByLabelText("Filtrar listas por nome");
+    const input = abrirFiltro();
     fireEvent.change(input, { target: { value: "mer" } });
 
     expect(screen.getByText("Mercado")).toBeInTheDocument();
@@ -108,19 +138,17 @@ describe("ListasIndex — filtro por nome (LB-17 PR1, AC 1)", () => {
     render(<ListasIndex />);
     await screen.findByText("Mercado");
 
-    const input = screen.getByLabelText("Filtrar listas por nome");
-    // uppercase no filtro casa lowercase no nome
+    const input = abrirFiltro();
     fireEvent.change(input, { target: { value: "MER" } });
     expect(screen.getByText("Mercado")).toBeInTheDocument();
     expect(screen.queryByText("Farmácia")).toBeNull();
 
-    // mistura de caso
     fireEvent.change(input, { target: { value: "mErCa" } });
     expect(screen.getByText("Mercado")).toBeInTheDocument();
     expect(screen.queryByText("Farmácia")).toBeNull();
   });
 
-  it("filtro vazio mostra todas as listas (sem filtro ativo)", async () => {
+  it("filtro vazio (texto) mostra todas as listas", async () => {
     const [id1, id2] = newListaIds(2);
     renomearLista(id1, "Mercado");
     renomearLista(id2, "Farmácia");
@@ -128,12 +156,12 @@ describe("ListasIndex — filtro por nome (LB-17 PR1, AC 1)", () => {
     render(<ListasIndex />);
     await screen.findByText("Mercado");
 
-    const input = screen.getByLabelText("Filtrar listas por nome");
+    const input = abrirFiltro();
     fireEvent.change(input, { target: { value: "xyz" } });
     expect(screen.queryByText("Mercado")).toBeNull();
     expect(screen.queryByText("Farmácia")).toBeNull();
 
-    // limpa o filtro → todas voltam
+    // limpa o texto → todas voltam
     fireEvent.change(input, { target: { value: "" } });
     expect(screen.getByText("Mercado")).toBeInTheDocument();
     expect(screen.getByText("Farmácia")).toBeInTheDocument();
@@ -146,7 +174,7 @@ describe("ListasIndex — filtro por nome (LB-17 PR1, AC 1)", () => {
     render(<ListasIndex />);
     await screen.findByText("Mercado");
 
-    const input = screen.getByLabelText("Filtrar listas por nome");
+    const input = abrirFiltro();
     fireEvent.change(input, { target: { value: "  mer  " } });
     expect(screen.getByText("Mercado")).toBeInTheDocument();
   });
@@ -156,24 +184,58 @@ describe("ListasIndex — filtro por nome (LB-17 PR1, AC 1)", () => {
     render(<ListasIndex />);
     await screen.findByText("Lista 1");
 
-    const input = screen.getByLabelText("Filtrar listas por nome");
+    const input = abrirFiltro();
     fireEvent.change(input, { target: { value: "zzz-sem-match" } });
 
     expect(
       await screen.findByText(/Nenhuma lista encontrada com esse nome/),
     ).toBeInTheDocument();
-    // mensagem de índice vazio (distinta) NÃO aparece
     expect(screen.queryByText(/Nenhuma lista ainda/)).toBeNull();
   });
 
-  it("mensagem de vazio do filtro só aparece quando há listas mas nenhuma casa", async () => {
+  it("mensagem de vazio do filtro não aparece no índice vazio", async () => {
     render(<ListasIndex />);
     await screen.findByText(/Nenhuma lista ainda/);
-    // índice vazio: nem o campo, nem a mensagem de filtro vazia
+    expect(screen.queryByLabelText("Abrir filtro por nome")).toBeNull();
     expect(screen.queryByLabelText("Filtrar listas por nome")).toBeNull();
-    expect(
-      screen.queryByText(/Nenhuma lista encontrada/),
-    ).toBeNull();
+    expect(screen.queryByText(/Nenhuma lista encontrada/)).toBeNull();
+  });
+
+  it("fechar via ✕ fecha o campo e limpa o texto", async () => {
+    const [id1, id2] = newListaIds(2);
+    renomearLista(id1, "Mercado");
+    renomearLista(id2, "Farmácia");
+
+    render(<ListasIndex />);
+    await screen.findByText("Mercado");
+    const input = abrirFiltro();
+    fireEvent.change(input, { target: { value: "mer" } });
+    expect(screen.getByText("Mercado")).toBeInTheDocument();
+    expect(screen.queryByText("Farmácia")).toBeNull();
+
+    // fecha via ✕
+    fireEvent.click(screen.getByLabelText("Fechar filtro"));
+    // campo some, botão-ícone volta
+    expect(screen.queryByLabelText("Filtrar listas por nome")).toBeNull();
+    expect(screen.getByLabelText("Abrir filtro por nome")).toBeInTheDocument();
+    // texto limpo: todas as listas visíveis novamente
+    expect(screen.getByText("Mercado")).toBeInTheDocument();
+    expect(screen.getByText("Farmácia")).toBeInTheDocument();
+  });
+
+  it("Escape no campo fecha e limpa o filtro", async () => {
+    const [id1] = newListaIds(1);
+    renomearLista(id1, "Mercado");
+
+    render(<ListasIndex />);
+    await screen.findByText("Mercado");
+    const input = abrirFiltro();
+    fireEvent.change(input, { target: { value: "mer" } });
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.queryByLabelText("Filtrar listas por nome")).toBeNull();
+    expect(screen.getByLabelText("Abrir filtro por nome")).toBeInTheDocument();
+    expect(screen.getByText("Mercado")).toBeInTheDocument();
   });
 
   it("filtro não persiste após desmontar/remontar (efêmero)", async () => {
@@ -182,18 +244,15 @@ describe("ListasIndex — filtro por nome (LB-17 PR1, AC 1)", () => {
 
     const { unmount } = render(<ListasIndex />);
     await screen.findByText("Mercado");
-    const input = screen.getByLabelText("Filtrar listas por nome");
+    const input = abrirFiltro();
     fireEvent.change(input, { target: { value: "mer" } });
     expect(screen.getByText("Mercado")).toBeInTheDocument();
 
     unmount();
     render(<ListasIndex />);
-    // ao reabrir, o campo volta vazio — todas as listas visíveis
-    await screen.findByText("Mercado");
-    const inputPos = screen.getByLabelText(
-      "Filtrar listas por nome",
-    ) as HTMLInputElement;
-    expect(inputPos.value).toBe("");
+    // ao reabrir, volta ao estado fechado (botão-ícone), campo não visível
+    await screen.findByLabelText("Abrir filtro por nome");
+    expect(screen.queryByLabelText("Filtrar listas por nome")).toBeNull();
   });
 
   /** Nomes das listas na ordem em que aparecem (sem o pin). */
@@ -214,7 +273,6 @@ describe("ListasIndex — filtro por nome (LB-17 PR1, AC 1)", () => {
     const [id1, id2] = newListaIds(2);
     renomearLista(id1, "Mercado");
     renomearLista(id2, "Farmácia");
-    // fixa Mercado (vai para o topo, seção Fixadas)
     render(<ListaScreen listId={id1} />);
     fireEvent.click(await screen.findByLabelText("Mais opções da lista"));
     fireEvent.click(screen.getByRole("menuitem", { name: "Fixar lista" }));
@@ -222,11 +280,9 @@ describe("ListasIndex — filtro por nome (LB-17 PR1, AC 1)", () => {
 
     render(<ListasIndex />);
     await screen.findByText("Mercado");
-    // ordem inicial: Mercado (fixada) → Farmácia
     expect(nomesEmOrdem()).toEqual(["Mercado", "Farmácia"]);
 
-    // filtra por "a" — ambas casam; ordem preservada
-    const input = screen.getByLabelText("Filtrar listas por nome");
+    const input = abrirFiltro();
     fireEvent.change(input, { target: { value: "a" } });
     expect(nomesEmOrdem()).toEqual(["Mercado", "Farmácia"]);
   });
@@ -243,21 +299,18 @@ describe("ListasIndex — filtro por nome (LB-17 PR1, AC 1)", () => {
     await screen.findByText("Mercado");
     expect(screen.getByLabelText('Fixada: "Mercado"')).toBeInTheDocument();
 
-    const input = screen.getByLabelText("Filtrar listas por nome");
+    const input = abrirFiltro();
     fireEvent.change(input, { target: { value: "mer" } });
-    // pin permanece visível na linha filtrada
     expect(screen.getByLabelText('Fixada: "Mercado"')).toBeInTheDocument();
   });
 
-  it("botão 'Nova lista' permanece funcional e visível com filtro ativo", async () => {
+  it("botão 'Nova lista' permanece funcional e visível com filtro aberto", async () => {
     newListaIds(1);
     render(<ListasIndex />);
     await screen.findByText("Lista 1");
 
-    const input = screen.getByLabelText("Filtrar listas por nome");
-    fireEvent.change(input, { target: { value: "zzz" } });
+    abrirFiltro();
 
-    // botão continua clicável e cria nova lista (push acumula: 1 do setup + 1 do clique)
     const pushAntes = pushMock.mock.calls.length;
     const botao = screen.getByText("Nova lista");
     fireEvent.click(botao);
