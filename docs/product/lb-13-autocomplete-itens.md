@@ -1,6 +1,6 @@
 # Spec LB-13 — Autocomplete de itens previamente adicionados (desktop e mobile)
 
-**Issue:** [LB-13](https://linear.app/alysson-azevedo/issue/LB-13/autocomplete-de-itens-previamente-adicionados-desktop-e-mobile) · **State:** 📑 Spec · **Tipo:** 🔍 Melhoria · **Prioridade:** baixa
+**Issue:** [LB-13](https://linear.app/alysson-azevedo/issue/LB-13/autocomplete-de-itens-previamente-adicionados-desktop-e-mobile) · **State:** ✅ Deployed (v0.7.0) · **Tipo:** 🔍 Melhoria · **Prioridade:** baixa
 **Base:** LB-3 (✅ Deployed) — entrada inline de item (campo + Enter); LB-5 (✅ Deployed) — múltiplas listas; LB-6 (✅ Deployed) — listas/itens no Supabase (fonte de verdade) + cache localStorage (local-first), sync cross-device por `updated_at`, RLS por `auth.uid()`; LB-4 (✅ Deployed) — UX mobile (alvo ≥44px).
 
 **Escopo desta spec:** negócio (critérios de aceite + UX do ponto de vista do usuário). A spec de **design** (componente de autocomplete/combobox, estrutura de código, normalização de texto, tratamento de focus/scroll no mobile) é trabalho do 🤖 PD em `design/lb-13-*.md`.

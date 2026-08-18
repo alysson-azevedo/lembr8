@@ -28,6 +28,7 @@ import type {
 const listeners = new Set<() => void>();
 const EMPTY_INDEX: ListaIndex[] = [];
 const EMPTY_ITEMS: Item[] = [];
+const EMPTY_STRINGS: string[] = [];
 
 // Ouvintes de mutação (LB-7): disparam só em create/rename/add/toggle, usados
 // pelo SyncController para o trigger de sync pós-mutação (debounced). Separados
@@ -79,11 +80,18 @@ function bumpVersion(): void {
   version += 1;
   indexCache = null;
   screenCache = null;
+  suggestionsCache = null;
 }
 
 let indexCache: { version: number; data: ListaIndex[] } | null = null;
 let screenCache: { version: number; listId: string; data: ListaScreen } | null =
   null;
+let suggestionsCache: {
+  version: number;
+  query: string;
+  limit: number;
+  data: string[];
+} | null = null;
 
 /** Índice de listas com contagem de a-fazer (tela `/`). */
 export function useListas(): ListaIndex[] {
@@ -126,6 +134,34 @@ export function useLista(listId: string): ListaScreen {
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
+}
+
+/**
+ * Sugestões de autocomplete para o campo de novo item (LB-13): itens de todas
+ * as listas da conta, mais recente primeiro (`updatedAt` desc), casamento por
+ * prefixo insensível a acento/caixa, ≤`limit` (default 6). Lê só do cache (sem
+ * Supabase). Memoizado por `(version, query, limit)` para manter referência
+ * estável entre renders (requisito do `useSyncExternalStore`); invalidado em
+ * toda mutação/sync/reset via `bumpVersion`.
+ */
+export function useItemSuggestions(query: string, limit = 6): string[] {
+  return useSyncExternalStore(
+    subscribe,
+    () => {
+      if (
+        suggestionsCache &&
+        suggestionsCache.version === version &&
+        suggestionsCache.query === query &&
+        suggestionsCache.limit === limit
+      ) {
+        return suggestionsCache.data;
+      }
+      const data = repoInstance().listItemSuggestions(query, limit);
+      suggestionsCache = { version, query, limit, data };
+      return data;
+    },
+    () => EMPTY_STRINGS,
+  );
 }
 
 /** `true` após a hidratação no cliente; adia o estado vazio para evitar flash. */
@@ -230,4 +266,5 @@ export function __resetListasStoreForTests(): void {
   version = 0;
   indexCache = null;
   screenCache = null;
+  suggestionsCache = null;
 }
