@@ -26,7 +26,7 @@ function localList(
   updatedAt: string = T0,
   pinned: boolean = false,
 ): LocalList {
-  return { id, nome, pinned, createdAt: T0, updatedAt };
+  return { id, nome, pinned, archivedAt: null, createdAt: T0, updatedAt };
 }
 
 function localItem(
@@ -45,7 +45,7 @@ function cloudList(
   updatedAt: string = T0,
   pinned: boolean = false,
 ): ListRecord {
-  return { id, nome, pinned, created_at: T0, updated_at: updatedAt };
+  return { id, nome, pinned, archived_at: null, created_at: T0, updated_at: updatedAt };
 }
 
 function cloudItem(

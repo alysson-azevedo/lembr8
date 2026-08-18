@@ -79,11 +79,13 @@ let version = 0;
 function bumpVersion(): void {
   version += 1;
   indexCache = null;
+  archivedIndexCache = null;
   screenCache = null;
   suggestionsCache = null;
 }
 
 let indexCache: { version: number; data: ListaIndex[] } | null = null;
+let archivedIndexCache: { version: number; data: ListaIndex[] } | null = null;
 let screenCache: { version: number; listId: string; data: ListaScreen } | null =
   null;
 let suggestionsCache: {
@@ -105,6 +107,30 @@ export function useListas(): ListaIndex[] {
     },
     () => EMPTY_INDEX,
   );
+}
+
+/**
+ * Índice de listas arquivadas (tela `/arquivadas`, LB-16): arquivadas
+ * (`archivedAt !== null`), ordenadas por `updated_at` desc. Mesmo shape do
+ * `useListas` (id, nome, aFazer, pinned).
+ */
+export function useListasArquivadas(): ListaIndex[] {
+  return useSyncExternalStore(
+    subscribe,
+    () => {
+      if (archivedIndexCache && archivedIndexCache.version === version)
+        return archivedIndexCache.data;
+      const data = repoInstance().listArchivedIndex();
+      archivedIndexCache = { version, data };
+      return data;
+    },
+    () => EMPTY_INDEX,
+  );
+}
+
+/** `true` se há ≥1 lista arquivada (controla a entrada "Arquivadas" no índice, LB-16 AC 3). */
+export function useTemArquivadas(): boolean {
+  return useListasArquivadas().length > 0;
 }
 
 /** Dados da tela da lista `/listas/[id]`: lista + a-fazer + concluídos. */
@@ -200,6 +226,22 @@ export function togglePinLista(id: string): void {
   notifyMutations();
 }
 
+/** Arquiva uma lista (some da tela inicial, vai para Arquivadas) e notifica a UI. LB-16. */
+export function archiveLista(id: string): void {
+  repoInstance().archiveLista(id);
+  bumpVersion();
+  notify();
+  notifyMutations();
+}
+
+/** Desarquiva uma lista (volta à tela inicial) e notifica a UI. LB-16. */
+export function unarchiveLista(id: string): void {
+  repoInstance().unarchiveLista(id);
+  bumpVersion();
+  notify();
+  notifyMutations();
+}
+
 /** Adiciona um item a uma lista (reutilização/duplicado) e notifica a UI. */
 export function addItemToLista(
   listId: string,
@@ -265,6 +307,7 @@ export function __resetListasStoreForTests(): void {
   mutationListeners.clear();
   version = 0;
   indexCache = null;
+  archivedIndexCache = null;
   screenCache = null;
   suggestionsCache = null;
 }

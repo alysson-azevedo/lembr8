@@ -34,12 +34,14 @@ export type ListaIndex = {
 };
 
 /**
- * Lista com estado de fixação (LB-14) — exposto no snapshot da tela da lista
- * (`useLista`) para a UI ler `pinned` (texto do menu overflow). `pinned` vive no
- * registro persistido (`ListRecordLocal`); o tipo base `Lista` permanece sem ele
- * para não poluir funções puras que só lidam com `nome` (ex.: `nextListaName`).
+ * Lista com estado de fixação (LB-14) e arquivamento (LB-16) — exposto no
+ * snapshot da tela da lista (`useLista`) para a UI ler `pinned` (texto do menu
+ * overflow) e `archived` (toggle arquivar/desarquivar + decisões de UI). Ambos
+ * vivem no registro persistido (`ListRecordLocal`); o tipo base `Lista`
+ * permanece sem eles para não poluir funções puras que só lidam com `nome`
+ * (ex.: `nextListaName`).
  */
-export type ListaDetalhe = Lista & { pinned: boolean };
+export type ListaDetalhe = Lista & { pinned: boolean; archived: boolean };
 
 /**
  * Tombstone local de exclusão (LB-8, ADR 2026-08-14): ids excluídos no cache
@@ -56,7 +58,7 @@ export interface ListasRepository {
   listListas(): Lista[];
   /** Índice de listas com contagem de a-fazer (para a tela `/`). */
   listIndex(): ListaIndex[];
-  /** Lista pelo id (com `pinned`), ou `null` se não existir. */
+  /** Lista pelo id (com `pinned` e `archived`), ou `null` se não existir. */
   getLista(id: string): ListaDetalhe | null;
   /** Itens da lista em ordem de exibição: a-fazer (inserção) ++ concluídos (conclusão). */
   listItems(listId: string): Item[];
@@ -81,6 +83,16 @@ export interface ListasRepository {
   deleteLista(id: string): void;
   /** Alterna o estado de fixação (`pinned`) da lista (toggle, LB-14). Mutação: bumpa `updated_at` e enfileira pending. */
   togglePinLista(id: string): void;
+  /**
+   * Índice de listas arquivadas (archived_at IS NOT NULL), ordenadas por
+   * `updated_at` desc — para a rota `/arquivadas` (LB-16). Mesmo shape do
+   * `listIndex()` (id, nome, aFazer, pinned) — a UI não precisa de `archived`.
+   */
+  listArchivedIndex(): ListaIndex[];
+  /** Arquiva a lista (seta `archived_at = now`, bumpa `updated_at`, enfileira pending). Mutação (LB-16). */
+  archiveLista(id: string): void;
+  /** Desarquiva a lista (limpa `archived_at = null`, bumpa `updated_at`, enfileira pending). Mutação (LB-16). */
+  unarchiveLista(id: string): void;
   /** Sincroniza com o cloud (push dos pendentes + pull/merge por `updated_at`). */
   sync(): Promise<{ pushed: number; pulled: number }>;
   /** Reinicia o cache para outra conta (isolamento no login/logout). */

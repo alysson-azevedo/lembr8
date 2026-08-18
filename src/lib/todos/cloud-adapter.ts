@@ -10,11 +10,13 @@ import { getBrowserSupabase } from "@/lib/supabase/client";
  * repository o resolve (lazy, no client).
  */
 
-/** Registro de lista no formato do cloud (timestamps ISO para o merge + fixação LB-14). */
+/** Registro de lista no formato do cloud (timestamps ISO para o merge + fixação LB-14 + arquivamento LB-16). */
 export type ListRecord = {
   id: string;
   nome: string;
   pinned: boolean;
+  /** `null`/ausente = ativa; string ISO = arquivada (LB-16). */
+  archived_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -57,7 +59,7 @@ export function createSupabaseCloudAdapter(): CloudAdapter {
     async pull() {
       const supabase = getBrowserSupabase();
       const [listsRes, itemsRes] = await Promise.all([
-        supabase.from("lists").select("id,nome,pinned,created_at,updated_at"),
+        supabase.from("lists").select("id,nome,pinned,archived_at,created_at,updated_at"),
         supabase.from("items").select(
           "id,list_id,texto,concluido,created_at,updated_at",
         ),
@@ -127,10 +129,11 @@ export class FakeCloudAdapter implements CloudAdapter {
     // merge por updated_at (estritamente maior vence; empate mantém o atual).
     for (const l of lists) {
       const ex = state.lists.find((x) => x.id === l.id);
-      if (!ex) state.lists.push({ ...l });
+      if (!ex) state.lists.push({ ...l, archived_at: l.archived_at ?? null });
       else if (l.updated_at > ex.updated_at) {
         ex.nome = l.nome;
         ex.pinned = l.pinned;
+        ex.archived_at = l.archived_at ?? null;
         ex.updated_at = l.updated_at;
         ex.created_at = l.created_at;
       }
