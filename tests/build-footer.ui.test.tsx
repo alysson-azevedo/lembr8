@@ -99,6 +99,50 @@ describe("LB-11 — rodapé Ambiente/Build no shell autenticado", () => {
   });
 });
 
+describe("LB-15 — container de conteúdo empilha header acima (flex-col)", () => {
+  it("o container é flex-col (row faria header e conteúdo ficarem lado a lado)", async () => {
+    const { container } = await renderShell();
+    const contentDiv = container.querySelector("main > div");
+    expect(contentDiv!.className).toContain("flex-col");
+    // Alinhamentos do eixo horizontal (row) quebrariam o empilhamento:
+    // `justify-center` sozinho vira coluna lateral centralizada; `items-center`
+    // em coluna encolheria os filhos horizontalmente.
+    expect(contentDiv!.className).not.toContain("items-center");
+    expect(contentDiv!.className).not.toContain("sm:items-center");
+  });
+
+  it("centraliza verticalmente: conteúdo no topo no mobile, centrado em sm+", async () => {
+    const { container } = await renderShell();
+    const contentDiv = container.querySelector("main > div");
+    expect(contentDiv!.className).toContain("justify-start");
+    expect(contentDiv!.className).toContain("sm:justify-center");
+  });
+
+  it("header e conteúdo de uma rota real (fragment com 2 irmãos) ficam empilhados", async () => {
+    const Layout = appLayout.default;
+    const el = (await Layout({
+      children: (
+        <>
+          <div data-testid="header">header</div>
+          <div data-testid="lista">lista</div>
+        </>
+      ),
+    } as never)) as React.ReactElement;
+    cleanup();
+    const { container: c2 } = render(el);
+    const contentDiv = c2.querySelector("main > div")!;
+    // Os dois irmãos são filhos diretos do mesmo container flex-col: com
+    // flex-direction column eles ocupam linhas distintas (header acima).
+    expect(contentDiv.className).toContain("flex-col");
+    const header = c2.querySelector('[data-testid="header"]')!;
+    const lista = c2.querySelector('[data-testid="lista"]')!;
+    expect(header.parentElement).toBe(contentDiv);
+    expect(lista.parentElement).toBe(contentDiv);
+    // Ordem no fluxo vertical: header antes da lista.
+    expect(header.compareDocumentPosition(lista) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
 describe("LB-11 — CA 2: rodapé só nas telas autenticadas (não em /login)", () => {
   it("a página de /login não renderiza o rodapé Ambiente/Build", () => {
     const { container } = render(<LoginPage />);
