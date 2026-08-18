@@ -10,10 +10,11 @@ import { getBrowserSupabase } from "@/lib/supabase/client";
  * repository o resolve (lazy, no client).
  */
 
-/** Registro de lista no formato do cloud (timestamps ISO para o merge). */
+/** Registro de lista no formato do cloud (timestamps ISO para o merge + fixação LB-14). */
 export type ListRecord = {
   id: string;
   nome: string;
+  pinned: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -56,7 +57,7 @@ export function createSupabaseCloudAdapter(): CloudAdapter {
     async pull() {
       const supabase = getBrowserSupabase();
       const [listsRes, itemsRes] = await Promise.all([
-        supabase.from("lists").select("id,nome,created_at,updated_at"),
+        supabase.from("lists").select("id,nome,pinned,created_at,updated_at"),
         supabase.from("items").select(
           "id,list_id,texto,concluido,created_at,updated_at",
         ),
@@ -129,6 +130,7 @@ export class FakeCloudAdapter implements CloudAdapter {
       if (!ex) state.lists.push({ ...l });
       else if (l.updated_at > ex.updated_at) {
         ex.nome = l.nome;
+        ex.pinned = l.pinned;
         ex.updated_at = l.updated_at;
         ex.created_at = l.created_at;
       }

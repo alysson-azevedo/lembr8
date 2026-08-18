@@ -267,7 +267,9 @@ describe("createLocalFirstRepository — persistência local (CA 2, 7)", () => {
     const l2 = repo.createList(nextListaName(repo.listListas()));
     expect(l1.nome).toBe("Lista 1");
     expect(l2.nome).toBe("Lista 2");
-    expect(repo.listIndex().map((l) => l.nome)).toEqual(["Lista 1", "Lista 2"]);
+    // O índice agora ordena por modificação (LB-14), não por criação; o ponto
+    // deste teste é que ambas aparecem, não a ordem (coberta em tests/pin.test.ts).
+    expect(repo.listIndex().map((l) => l.nome).sort()).toEqual(["Lista 1", "Lista 2"]);
   });
 
   it("createList persiste no storage", () => {

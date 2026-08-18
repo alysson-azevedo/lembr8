@@ -392,3 +392,73 @@ describe("RLS de delete — hard delete só do dono (LB-8 AC 6)", () => {
     expect(data).toEqual([]);
   });
 });
+
+describe("RPC sync_push — pinned (LB-14, AC 11/12/13)", () => {
+  it("upsert com pinned=true persiste e é lido de volta", async () => {
+    const a = await createUser();
+    const pa = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    const ca = await signIn(a, pa);
+
+    const id = randomUUID();
+    const { error } = await ca.rpc("sync_push", {
+      p_lists: [{ id, nome: "Mercado", pinned: true, created_at: T1, updated_at: T1 }],
+      p_items: [],
+    });
+    expect(error).toBeNull();
+    const { data } = await service
+      .from("lists")
+      .select("nome,pinned")
+      .eq("id", id)
+      .single();
+    expect(data?.pinned).toBe(true);
+  });
+
+  it("pinned ausente no payload cai em false (compat com client antigo)", async () => {
+    const a = await createUser();
+    const pa = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    const ca = await signIn(a, pa);
+
+    const id = randomUUID();
+    await ca.rpc("sync_push", {
+      p_lists: [{ id, nome: "Sem pin", created_at: T1, updated_at: T1 }],
+      p_items: [],
+    });
+    const { data } = await service.from("lists").select("pinned").eq("id", id).single();
+    expect(data?.pinned).toBe(false);
+  });
+
+  it("default da coluna é false no insert direto (AC 12 — aditivo, sem fixar existentes)", async () => {
+    const a = await createUser();
+    const pa = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    const ca = await signIn(a, pa);
+
+    const id = randomUUID();
+    const { error } = await ca.from("lists").insert({ id, nome: "Nova" });
+    expect(error).toBeNull();
+    const { data } = await service.from("lists").select("pinned").eq("id", id).single();
+    expect(data?.pinned).toBe(false);
+  });
+
+  it("updated_at estritamente maior sobrescreve o pinned (merge cross-device, AC 11)", async () => {
+    const a = await createUser();
+    const pa = randomUUID();
+    await service.auth.admin.updateUserById(a.id, { password: pa });
+    const ca = await signIn(a, pa);
+
+    const id = randomUUID();
+    await ca.rpc("sync_push", {
+      p_lists: [{ id, nome: "L", pinned: false, created_at: T1, updated_at: T1 }],
+      p_items: [],
+    });
+    // versão mais recente fixada → vence.
+    await ca.rpc("sync_push", {
+      p_lists: [{ id, nome: "L", pinned: true, created_at: T1, updated_at: T2 }],
+      p_items: [],
+    });
+    const { data } = await service.from("lists").select("pinned").eq("id", id).single();
+    expect(data?.pinned).toBe(true);
+  });
+});
