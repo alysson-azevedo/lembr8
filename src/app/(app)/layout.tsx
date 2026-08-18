@@ -16,6 +16,13 @@ export const dynamic = "force-dynamic";
  * ser `<footer>` irmão dele, na base do `<main>` (coluna flex). Assim não
  * ocupa mais espaço vertical no fluxo do conteúdo da rota e fica discreto na
  * base do shell, sem mudar a lógica/origem dos dados (`getBuildInfo()`).
+ *
+ * (LB-15) O container de conteúdo é `flex-col`: as rotas renderizam header +
+ * conteúdo como irmãos (fragment), e o `flex` (row) herdado do shell da LB-4
+ * os colocava lado a lado — o header virava uma coluna à esquerda da lista.
+ * Com a coluna vertical, `justify-center` (ativo em sm+) passa a centralizar
+ * no eixo vertical e os filhos esticam na largura do container; os
+ * alinhamentos horizontais (`justify-center`/`items-*`) viram no-ops.
  */
 export default async function AppLayout({
   children,
@@ -31,7 +38,7 @@ export default async function AppLayout({
 
   return (
     <main className="min-h-dvh flex flex-col">
-      <div className="flex-1 w-full max-w-[28rem] self-center px-6 pt-[max(1.5rem,env(safe-area-inset-top))] flex items-start justify-center sm:items-center">
+      <div className="flex-1 w-full max-w-[28rem] self-center px-6 pt-[max(1.5rem,env(safe-area-inset-top))] flex flex-col justify-start sm:justify-center">
         {children}
       </div>
       <footer className="w-full max-w-[28rem] self-center px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center font-mono text-[0.8rem] text-muted">
