@@ -62,66 +62,76 @@ function nomesEmOrdem(): string[] {
     .filter((n) => n.startsWith("Lista "));
 }
 
-describe("ListasIndex — botão de fixar na linha (AC 3, LB-4 touch)", () => {
-  it("cada linha tem um botão 📌 fora do <Link>, com alvo ≥44px e aria-label", async () => {
+describe("ListasIndex — pin só em listas fixadas (indicador, não botão)", () => {
+  it("lista não-fixada: sem pin na linha", async () => {
     newListaIds(1);
     render(<ListasIndex />);
-    const btn = await screen.findByLabelText('Fixar "Lista 1"');
-    expect(btn.tagName).toBe("BUTTON");
-    expect(btn.className).toContain("min-h-11");
-    expect(btn.className).toContain("min-w-11");
-    // o pin fica fora do link de navegação (clicar não navega).
-    const link = screen.getByText("Lista 1").closest("a");
-    expect(link).not.toContainElement(btn);
+    await screen.findByText("Lista 1");
+    // sem botão/indicador de fixar no índice (fixar é no detalhe).
+    expect(screen.queryByLabelText(/Fixar "Lista 1"/)).toBeNull();
+    expect(screen.queryByText("📌")).toBeNull();
   });
 
-  it("clicar no pin NÃO navega (não dispara router.push)", async () => {
-    newListaIds(1);
+  it("lista fixada: exibe o pin como indicador visual", async () => {
+    const [id] = newListaIds(1);
+    // fixa pelo detalhe (fluxo real — fixar não está no índice).
+    render(<ListaScreen listId={id} />);
+    fireEvent.click(await screen.findByLabelText("Mais opções da lista"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Fixar lista" }));
+    cleanup();
     render(<ListasIndex />);
-    pushMock.mockClear();
-    const btn = await screen.findByLabelText('Fixar "Lista 1"');
-    fireEvent.click(btn);
-    expect(pushMock).not.toHaveBeenCalled();
+    await screen.findByText("Lista 1");
+    // pin visível como indicador (não botão).
+    expect(screen.getByLabelText('Fixada: "Lista 1"')).toBeInTheDocument();
   });
 });
 
-describe("ListasIndex — toggle fixar/desfixar reordena o índice (AC 1, 2, 5)", () => {
+describe("ListasIndex — fixar pelo detalhe reordena o índice (AC 1, 2, 5)", () => {
   it("fixar uma não-fixada move para o topo imediatamente (AC 1)", async () => {
-    newListaIds(2);
+    const [id1] = newListaIds(2);
+    // fixa Lista 1 pelo detalhe.
+    render(<ListaScreen listId={id1} />);
+    fireEvent.click(await screen.findByLabelText("Mais opções da lista"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Fixar lista" }));
+    cleanup();
     render(<ListasIndex />);
     await screen.findByText("Lista 1");
-    // inicialmente por updated_at desc: Lista 2 (criada depois) no topo.
-    expect(nomesEmOrdem()).toEqual(["Lista 2", "Lista 1"]);
-
-    fireEvent.click(screen.getByLabelText('Fixar "Lista 1"'));
     // fixadas vêm primeiro — Lista 1 no topo, depois Lista 2 (AC 5).
     expect(nomesEmOrdem()).toEqual(["Lista 1", "Lista 2"]);
-    // o botão agora anuncia "Desfixar" (AC 3).
-    expect(screen.getByLabelText('Desfixar "Lista 1"')).toBeInTheDocument();
   });
 
   it("desfixar devolve à posição por updated_at imediatamente (AC 2)", async () => {
-    newListaIds(2);
+    const [id1] = newListaIds(2);
+    // fixa depois desfixa pelo detalhe.
+    render(<ListaScreen listId={id1} />);
+    fireEvent.click(await screen.findByLabelText("Mais opções da lista"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Fixar lista" }));
+    await (await import("@testing-library/react")).waitFor(() =>
+      expect(screen.queryByRole("menu")).toBeNull(),
+    );
+    fireEvent.click(await screen.findByLabelText("Mais opções da lista"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Desfixar lista" }));
+    cleanup();
     render(<ListasIndex />);
     await screen.findByText("Lista 1");
-    fireEvent.click(screen.getByLabelText('Fixar "Lista 1"')); // fixa
-    fireEvent.click(screen.getByLabelText('Desfixar "Lista 1"')); // desfixa
-    // sem headers — índice único em sequência.
-    expect(screen.queryByText("Fixadas")).toBeNull();
-    expect(screen.queryByText("Demais")).toBeNull();
-    // ambas as listas presentes.
-    expect(screen.getByText("Lista 1")).toBeInTheDocument();
-    expect(screen.getByText("Lista 2")).toBeInTheDocument();
-    expect(screen.getByLabelText('Fixar "Lista 1"')).toBeInTheDocument();
+    // sem fixadas → índice por updated_at desc: Lista 1 no topo (toggle bumpa
+    // updated_at, AC 8).
+    expect(nomesEmOrdem()).toEqual(["Lista 1", "Lista 2"]);
+    // sem pin na Lista 1 (não fixada).
+    expect(screen.queryByLabelText('Fixada: "Lista 1"')).toBeNull();
   });
 
   it("sem confirmação ao fixar/desfixar (AC 4 — não destrutivo)", async () => {
-    newListaIds(1);
-    render(<ListasIndex />);
-    const btn = await screen.findByLabelText('Fixar "Lista 1"');
-    fireEvent.click(btn);
+    const [id] = newListaIds(1);
+    render(<ListaScreen listId={id} />);
+    fireEvent.click(await screen.findByLabelText("Mais opções da lista"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Fixar lista" }));
     expect(screen.queryByRole("dialog")).toBeNull();
-    fireEvent.click(screen.getByLabelText('Desfixar "Lista 1"'));
+    await (await import("@testing-library/react")).waitFor(() =>
+      expect(screen.queryByRole("menu")).toBeNull(),
+    );
+    fireEvent.click(await screen.findByLabelText("Mais opções da lista"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Desfixar lista" }));
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
@@ -136,11 +146,17 @@ describe("ListasIndex — índice em sequência, sem headers (AC 14)", () => {
   });
 
   it("todas fixadas: índice em sequência, sem headers", async () => {
-    newListaIds(2);
+    const [id1, id2] = newListaIds(2);
+    render(<ListaScreen listId={id1} />);
+    fireEvent.click(await screen.findByLabelText("Mais opções da lista"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Fixar lista" }));
+    cleanup();
+    render(<ListaScreen listId={id2} />);
+    fireEvent.click(await screen.findByLabelText("Mais opções da lista"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Fixar lista" }));
+    cleanup();
     render(<ListasIndex />);
     await screen.findByText("Lista 1");
-    fireEvent.click(screen.getByLabelText('Fixar "Lista 1"'));
-    fireEvent.click(screen.getByLabelText('Fixar "Lista 2"'));
     expect(screen.queryByText("Fixadas")).toBeNull();
     expect(screen.queryByText("Demais")).toBeNull();
     expect(screen.getByText("Lista 1")).toBeInTheDocument();
@@ -150,10 +166,13 @@ describe("ListasIndex — índice em sequência, sem headers (AC 14)", () => {
 
 describe("ListasIndex — persistência do pinned entre remontagens (AC 10)", () => {
   it("fixada permanece fixada ao reabrir o índice", async () => {
-    newListaIds(2);
+    const [id1] = newListaIds(2);
+    render(<ListaScreen listId={id1} />);
+    fireEvent.click(await screen.findByLabelText("Mais opções da lista"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Fixar lista" }));
+    cleanup();
     const { unmount } = render(<ListasIndex />);
     await screen.findByText("Lista 1");
-    fireEvent.click(screen.getByLabelText('Fixar "Lista 1"'));
     unmount();
     render(<ListasIndex />);
     // ao reabrir, Lista 1 continua fixada — no topo do índice.

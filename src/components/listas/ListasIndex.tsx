@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   createList,
-  togglePinLista,
   useHydrated,
   useListas,
 } from "@/lib/todos/store";
@@ -14,10 +13,10 @@ import type { ListaIndex } from "@/lib/todos/types";
  * Índice de listas (`/`) — botão "Nova lista" (1 toque cria `Lista N` e abre) +
  * listas em sequência (LB-14): fixadas (`pinned=true`) primeiro, demais depois,
  * todas por modificação mais recente (`updated_at` desc) — ordem entregue pronta
- * pelo `listIndex()`. Cada linha tem um botão 📌 (fora do `<Link>`) que
- * fixa/desfixa (toggle, não destrutivo, sem confirmação). A exclusão de lista
- * NÃO é exposta aqui (rework LB-8): é uma ação do detalhe, no menu overflow da
- * `ListaScreen`. Consome só o `store` (camada única de acesso aos dados).
+ * pelo `listIndex()`. O pin só aparece em listas fixadas (indicador visual);
+ * fixar/desfixar é feito no menu overflow "⋮" do detalhe (`ListaScreen`). A
+ * exclusão de lista NÃO é exposta aqui (rework LB-8). Consome só o `store`
+ * (camada única de acesso aos dados).
  */
 export function ListasIndex() {
   const listas = useListas();
@@ -54,7 +53,7 @@ export function ListasIndex() {
   );
 }
 
-/** Linha do índice: `<Link>` (nome + contagem) + botão 📌 de fixar (fora do link). */
+/** Linha do índice: `<Link>` (nome + contagem) + 📌 só quando fixada. */
 function Linha({ lista }: { lista: ListaIndex }) {
   return (
     <li className="flex items-center gap-2">
@@ -65,19 +64,14 @@ function Linha({ lista }: { lista: ListaIndex }) {
         <span>{lista.nome}</span>
         <span className="text-muted text-base">{lista.aFazer} a fazer</span>
       </Link>
-      <button
-        type="button"
-        onClick={() => togglePinLista(lista.id)}
-        aria-label={
-          lista.pinned ? `Desfixar "${lista.nome}"` : `Fixar "${lista.nome}"`
-        }
-        title={lista.pinned ? "Desfixar lista" : "Fixar lista"}
-        className={`flex min-h-11 min-w-11 items-center justify-center text-lg ${
-          lista.pinned ? "text-foreground" : "text-muted hover:text-foreground"
-        }`}
-      >
-        <span aria-hidden="true">📌</span>
-      </button>
+      {lista.pinned ? (
+        <span
+          aria-label={`Fixada: "${lista.nome}"`}
+          className="flex min-w-11 items-center justify-center text-lg text-foreground"
+        >
+          <span aria-hidden="true">📌</span>
+        </span>
+      ) : null}
     </li>
   );
 }
