@@ -1,6 +1,6 @@
 # Spec LB-19 — UX mobile: botão "Nova lista" compacto na tela índice
 
-**Issue:** [LB-19](https://linear.app/alysson-azevedo/issue/LB-19/ux-mobile-botao-nova-lista-compacto-na-tela-indice) · **State:** 📑 Spec · **Tipo:** 🔍 Melhoria · **Prioridade:** medium
+**Issue:** [LB-19](https://linear.app/alysson-azevedo/issue/LB-19/ux-mobile-botao-nova-lista-compacto-na-tela-indice) · **State:** ✅ Deployed (v0.8.1) · **Tipo:** 🔍 Melhoria · **Prioridade:** medium
 
 ## Problema
 Na tela índice (`/`), o botão "Nova lista" ocupa espaço vertical excessivo no mobile — é full-width com `min-h-11` e borda, competindo com a lista de listas que é o conteúdo prioritário. Em telas pequenas, o botão empurra o conteúdo principal para baixo.

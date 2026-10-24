@@ -1,6 +1,6 @@
 # Spec de design — LB-19: UX mobile — botão "Nova lista" compacto na tela índice
 
-**Issue:** [LB-19](https://linear.app/alysson-azevedo/issue/LB-19/ux-mobile-botao-nova-lista-compacto-na-tela-indice) · **State:** 📑 Spec → 🚧 Dev in progress · **Tipo:** 🔍 Melhoria · **Prioridade:** medium
+**Issue:** [LB-19](https://linear.app/alysson-azevedo/issue/LB-19/ux-mobile-botao-nova-lista-compacto-na-tela-indice) · **State:** ✅ Deployed (v0.8.1) · **Tipo:** 🔍 Melhoria · **Prioridade:** medium
 **Base:** LB-4 (UX mobile, alvos ≥44px), LB-5 (índice em `/` + "Nova lista" em 1 toque), LB-14 (fixadas primeiro + pin 📌 indicador na linha), LB-16 (link "Arquivadas"), LB-17 PR1 (filtro expansível 🔍 — o layout alvo do topo, `[＋ Nova lista] [🔍]`, já está esboçado na §1.1 daquela spec).
 **Spec de negócio:** `docs/product/lb-19-ux-botao-compacto.md` (PO) + descrição da issue. **ADRs:** `docs/decisions.md` (sem conflito; nada de arquitetura/stack/custo aqui).
 
