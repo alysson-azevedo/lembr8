@@ -1,6 +1,6 @@
 # Spec LB-25 — Autocomplete: casar por qualquer palavra do item (contains), não só prefixo
 
-**Issue:** [LB-25](https://linear.app/alysson-azevedo/issue/LB-25/autocomplete-casar-por-qualquer-palavra-do-item-contains-nao-so) · **State:** 📑 Spec · **Tipo:** 🔍 Melhoria · **Prioridade:** média
+**Issue:** [LB-25](https://linear.app/alysson-azevedo/issue/LB-25/autocomplete-casar-por-qualquer-palavra-do-item-contains-nao-so) · **State:** ✅ Deployed (v0.9.0) · **Tipo:** 🔍 Melhoria · **Prioridade:** média
 **Base:** LB-13 (✅ Deployed v0.7.0) — autocomplete de itens por **prefixo** (spec `lb-13-autocomplete-itens.md`, design `design/lb-13-autocomplete-itens.md`). A LB-13 registrou contains como "fora de escopo (limitação aceita)"; esta issue a revoga com base em feedback do dono do produto. Nenhuma decisão em `docs/decisions.md` é afetada (sem arquitetura/stack/custo/schema).
 
 **Escopo desta spec:** negócio (critérios de aceite + comportamento do casamento do ponto de vista do usuário). A spec de **design** (funções afetadas em `repository.ts`, shape dos testes, atualização de comentários/docs) é trabalho do 🤖 PD em `design/lb-25-*.md`.

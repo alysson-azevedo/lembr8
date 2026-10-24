@@ -1,6 +1,6 @@
 # Spec de design — LB-25: Autocomplete casando por qualquer palavra do item (contains)
 
-**Issue:** [LB-25](https://linear.app/alysson-azevedo/issue/LB-25/autocomplete-casar-por-qualquer-palavra-do-item-contains-nao-so) · **State:** 🚧 Dev in progress · **Tipo:** 🔍 Melhoria · **Prioridade:** média
+**Issue:** [LB-25](https://linear.app/alysson-azevedo/issue/LB-25/autocomplete-casar-por-qualquer-palavra-do-item-contains-nao-so) · **State:** ✅ Deployed (v0.9.0) · **Tipo:** 🔍 Melhoria · **Prioridade:** média
 **Base:** LB-13 (✅ Deployed v0.7.0) — esta spec é um **delta** sobre `design/lb-13-autocomplete-itens.md`: mudam só o **casamento** e a **ordenação** na camada de domínio (`repository.ts`). UI, store, tipos, acessibilidade e comportamento do combobox permanecem como na LB-13.
 **Spec de negócio:** `docs/product/lb-25-autocomplete-contains.md` (ACs detalhados). **ADRs:** `docs/decisions.md` (nenhuma afetada).
 
