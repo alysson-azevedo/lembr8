@@ -1,6 +1,6 @@
 # Spec LB-27 — PWA instalável no Android: ícones 192/512 + SW offline
 
-**Issue:** [LB-27](https://linear.app/alysson-azevedo/issue/LB-27/pwa-instalavel-no-android-icones-192512-sw-offline) · **State:** 📝 Backlog (na escrita desta spec) · **Tipo:** 🔍 Melhoria · **Prioridade:** média
+**Issue:** [LB-27](https://linear.app/alysson-azevedo/issue/LB-27/pwa-instalavel-no-android-icones-192512-sw-offline) · **State:** ✅ Deployed (v0.10.0) · **Tipo:** 🔍 Melhoria · **Prioridade:** média
 **Base:** estado atual do manifest (`src/app/manifest.ts`: ícones `/icon` 32×32 com `sizes: "any"` — falha no critério de installability do Chromium, que exige ícone ≥144px com tamanho declarado). Sem service worker, sem registro de SW, sem dependências PWA. Dados do app já são **local-first** (cache localStorage, LB-6/LB-8) — o offline de *dados* já existe; falta o offline do *shell*.
 
 **Escopo desta spec:** negócio (instalabilidade, offline do shell, critérios de aceite). A spec de **design** (arquivos exatos, estratégias de cache do SW, safe zone do ícone maskable, ponto de registro, shape dos testes) é trabalho do 🤖 PD em `design/lb-27-*.md`.

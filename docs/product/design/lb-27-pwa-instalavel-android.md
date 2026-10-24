@@ -1,6 +1,6 @@
 # Spec de design — LB-27: PWA instalável no Android (ícones 192/512 + SW offline)
 
-**Issue:** [LB-27](https://linear.app/alysson-azevedo/issue/LB-27/pwa-instalavel-no-android-icones-192512-sw-offline) · **State:** 📑 Spec → 🚧 Dev in progress · **Tipo:** 🔍 Melhoria · **Prioridade:** média
+**Issue:** [LB-27](https://linear.app/alysson-azevedo/issue/LB-27/pwa-instalavel-no-android-icones-192512-sw-offline) · **State:** ✅ Deployed (v0.10.0) · **Tipo:** 🔍 Melhoria · **Prioridade:** média
 **Spec de negócio:** `docs/product/lb-27-pwa-instalavel-android.md` (ACs 1-7). **ADRs:** `docs/decisions.md` — 2026-10-24 (SW manual sem deps; manifest JuxTheme `#1c1c23`).
 
 Arquivos atuais relevantes: `src/app/manifest.ts` (ícones `/icon` 32×32 `sizes: "any"` — falha installability), `src/app/icon.tsx` (favicon 32×32 via `next/og`), `src/app/apple-icon.tsx` (iOS 180×180), `src/app/layout.tsx` (metadata aponta `manifest: "/manifest.webmanifest"`), `public/` vazio.
