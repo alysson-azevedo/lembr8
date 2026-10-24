@@ -1,6 +1,6 @@
 # Spec LB-21 — Tema Mystical Blue (JuxTheme) para o app
 
-**Issue:** [LB-21](https://linear.app/alysson-azevedo/issue/LB-21/mudar-a-cor-do-tema-do-site) · **State:** 📑 Spec (autorado pelo PO) · **Tipo:** 🧹 Tarefa · **Prioridade:** medium
+**Issue:** [LB-21](https://linear.app/alysson-azevedo/issue/LB-21/mudar-a-cor-do-tema-do-site) · **State:** ✅ Deployed (v0.9.1) · **Tipo:** 🧹 Tarefa · **Prioridade:** medium
 
 ## Problema
 O tema atual do site é o default neutro do template (branco / `#0a0a0a` automático via `prefers-color-scheme`), sem identidade visual. O dono quer o app alinhado ao seu tema de desktop pessoal **Mystical Blue (JuxTheme)** — dark azul-plasma com accent azul vibrante.

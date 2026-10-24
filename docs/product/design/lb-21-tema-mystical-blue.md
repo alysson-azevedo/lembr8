@@ -1,6 +1,6 @@
 # Spec de design — LB-21: Tema Mystical Blue (JuxTheme)
 
-**Issue:** [LB-21](https://linear.app/alysson-azevedo/issue/LB-21/mudar-a-cor-do-tema-do-site) · **State:** 📑 Spec → 🚧 Dev in progress · **Tipo:** 🧹 Tarefa · **Prioridade:** medium
+**Issue:** [LB-21](https://linear.app/alysson-azevedo/issue/LB-21/mudar-a-cor-do-tema-do-site) · **State:** ✅ Deployed (v0.9.1) · **Tipo:** 🧹 Tarefa · **Prioridade:** medium
 **Base:** tokens atuais (`globals.css`), Toast invertido (LB-12), CTA preenchido compacto (LB-19), filtro (LB-17), alvos ≥44px (LB-4). **Spec de negócio:** `docs/product/lb-21-tema-mystical-blue.md` (decisões dark-only + base `#1c1c23` confirmadas pelo humano). **ADRs:** sem conflito — sem mudança de arquitetura/stack/dependência.
 
 Frontend/UI apenas: cores e estados visuais. Zero mudança de layout, comportamento, navegação, store/sync, schema. Sem nova dependência, sem lib de temas — o tema vive nos tokens CSS.
