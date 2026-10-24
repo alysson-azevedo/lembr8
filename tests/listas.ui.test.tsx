@@ -73,6 +73,19 @@ describe("ListasIndex — índice de listas (CA 2, 3)", () => {
     expect(screen.getByText("Lista 2")).toBeInTheDocument();
   });
 
+  it("'Nova lista' compacto (toolbar, com listas) cria e navega igual (CA 3, LB-19)", async () => {
+    const { unmount } = render(<ListasIndex />);
+    fireEvent.click(screen.getByText("Nova lista")); // Lista 1 (vazio → full-width)
+    unmount();
+    render(<ListasIndex />);
+    expect(await screen.findByText("Lista 1")).toBeInTheDocument();
+    // agora o botão é o compacto na toolbar, ao lado do 🔍 (LB-19)
+    expect(screen.getByLabelText("Abrir filtro por nome")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Nova lista"));
+    expect(pushMock).toHaveBeenCalledTimes(2);
+    expect(pushMock.mock.calls[1][0]).toMatch(/^\/listas\/[\w-]+$/);
+  });
+
   it("linha do índice mostra nome + contagem de a-fazer e é um link para a lista", async () => {
     const { unmount } = render(<ListasIndex />);
     fireEvent.click(screen.getByText("Nova lista")); // cria e navega

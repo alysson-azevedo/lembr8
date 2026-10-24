@@ -29,12 +29,28 @@ import type { ListaIndex } from "@/lib/todos/types";
  * `filtroNome` são efêmeros (não persistem). Fechar (`✕` ou `Escape`) limpa o
  * texto. Ver `docs/product/design/lb-17-filtro-listas.md`. O toggle "exibir
  * arquivadas" (PR2) depende de LB-16 e fica pendente.
+ *
+ * Botão "Nova lista" compacto (LB-19): a linha só-🔍 e o botão full-width
+ * viram uma toolbar de UMA linha `[＋ Nova lista] … [🔍]` (`justify-between`)
+ * no estado default com listas — 96px → 44px de controles antes da primeira
+ * lista. Botão primário preenchido (`bg-foreground text-background`, padrão do
+ * login) com `＋` em `aria-hidden`; alvo `min-h-11` (LB-4) preservado
+ * literalmente em todas as variantes — a compactação é horizontal + merge de
+ * linhas, nunca do alvo. Variantes por contexto: toolbar (`shrink-0`) com
+ * listas; filtro aberto → compacto `mt-2` abaixo do input (LB-17 intocado);
+ * índice vazio → `w-full` (CTA de onboarding). 1 toque continua criando
+ * `Lista N` e abrindo o detalhe (LB-5, intocado). Ver
+ * `docs/product/design/lb-19-ux-botao-compacto.md`.
  */
+
+// Classes base do botão "Nova lista" (LB-19 §2.2) — idem nas três variantes.
+const CLASSES_BOTAO_NOVA_LISTA =
+  "flex min-h-11 items-center justify-center gap-2 rounded bg-foreground px-4 py-2 text-base font-medium text-background hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground";
+
 export function ListasIndex() {
   const listas = useListas();
   const temArquivadas = useTemArquivadas();
   const hydrated = useHydrated();
-  const router = useRouter();
   const [filtroAberto, setFiltroAberto] = useState(false);
   const [filtroNome, setFiltroNome] = useState("");
 
@@ -52,7 +68,7 @@ export function ListasIndex() {
   return (
     <div className="mt-6">
       {listas.length > 0 ? (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2">
           {filtroAberto ? (
             <div className="flex flex-1 items-center gap-2 overflow-hidden transition-all duration-150">
               <input
@@ -78,29 +94,31 @@ export function ListasIndex() {
               </button>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => setFiltroAberto(true)}
-              aria-label="Abrir filtro por nome"
-              aria-expanded={false}
-              className="flex min-h-11 min-w-11 items-center justify-center text-base text-foreground hover:bg-current/5"
-            >
-              <span aria-hidden="true">🔍</span>
-            </button>
+            <>
+              <BotaoNovaLista
+                className={`${CLASSES_BOTAO_NOVA_LISTA} shrink-0`}
+              />
+              <button
+                type="button"
+                onClick={() => setFiltroAberto(true)}
+                aria-label="Abrir filtro por nome"
+                aria-expanded={false}
+                className="flex min-h-11 min-w-11 items-center justify-center text-base text-foreground hover:bg-current/5"
+              >
+                <span aria-hidden="true">🔍</span>
+              </button>
+            </>
           )}
         </div>
       ) : null}
 
-      <button
-        type="button"
-        onClick={() => {
-          const lista = createList();
-          router.push(`/listas/${lista.id}`);
-        }}
-        className="mt-2 w-full min-h-11 rounded border border-current/20 px-3 py-2 text-base"
-      >
-        Nova lista
-      </button>
+      {listas.length === 0 || filtroAberto ? (
+        <BotaoNovaLista
+          className={`${
+            listas.length === 0 ? "w-full" : "mt-2 shrink-0"
+          } ${CLASSES_BOTAO_NOVA_LISTA}`}
+        />
+      ) : null}
 
       {hydrated && listas.length === 0 && !temArquivadas ? (
         <p className="mt-4 text-base text-muted">
@@ -133,6 +151,30 @@ export function ListasIndex() {
         </p>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Botão "Nova lista" do índice (LB-19): compacto na toolbar / abaixo do filtro
+ * aberto, full-width no índice vazio — as variantes vêm via `className` (a
+ * base compartilhada é `CLASSES_BOTAO_NOVA_LISTA`). 1 toque cria `Lista N` e
+ * abre o detalhe (LB-5, intocado). O rótulo "Nova lista" permanece text node
+ * direto do `<button>` (não envolver em span) — os testes usam `getByText`, e
+ * o `＋` em `<span aria-hidden>` fica fora do nome acessível.
+ */
+function BotaoNovaLista({ className = "" }: { className?: string }) {
+  const router = useRouter();
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        const lista = createList();
+        router.push(`/listas/${lista.id}`);
+      }}
+      className={className}
+    >
+      <span aria-hidden="true">＋</span> Nova lista
+    </button>
   );
 }
 
