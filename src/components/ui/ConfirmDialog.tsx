@@ -69,14 +69,14 @@ export function ConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex min-h-dvh items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex min-h-dvh items-center justify-center bg-overlay"
       onClick={onCancel}
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
     >
       <div
-        className="w-full max-w-sm rounded border border-current/20 bg-background p-5"
+        className="w-full max-w-sm rounded border border-current/20 bg-surface p-5"
         onClick={(event) => event.stopPropagation()}
       >
         <h2 id="confirm-dialog-title" className="text-lg font-semibold">
@@ -88,7 +88,7 @@ export function ConfirmDialog({
             ref={cancelRef}
             type="button"
             onClick={onCancel}
-            className="min-h-11 flex-1 rounded border border-current/20 px-3 py-2 text-base"
+            className="min-h-11 flex-1 rounded border border-current/20 px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             {cancelLabel}
           </button>
@@ -96,8 +96,8 @@ export function ConfirmDialog({
             ref={confirmRef}
             type="button"
             onClick={onConfirm}
-            className={`min-h-11 flex-1 rounded border border-current/20 px-3 py-2 text-base ${
-              destructive ? "text-red-600 dark:text-red-400" : ""
+            className={`min-h-11 flex-1 rounded border border-current/20 px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+              destructive ? "text-danger" : ""
             }`}
           >
             {confirmLabel}

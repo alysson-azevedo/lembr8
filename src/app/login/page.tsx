@@ -46,11 +46,11 @@ export default function LoginPage() {
               autoComplete="email"
               required
               onChange={onChange}
-              className="w-full rounded border border-current/20 px-3 py-2 text-sm outline-none focus:border-current/50"
+              className="w-full rounded border border-current/20 px-3 py-2 text-sm outline-none focus:border-primary"
             />
             <p
               data-error="email"
-              className="text-xs text-red-500 empty:hidden"
+              className="text-xs text-danger empty:hidden"
             />
           </div>
 
@@ -65,22 +65,22 @@ export default function LoginPage() {
               autoComplete="current-password"
               required
               onChange={onChange}
-              className="w-full rounded border border-current/20 px-3 py-2 text-sm outline-none focus:border-current/50"
+              className="w-full rounded border border-current/20 px-3 py-2 text-sm outline-none focus:border-primary"
             />
             <p
               data-error="password"
-              className="text-xs text-red-500 empty:hidden"
+              className="text-xs text-danger empty:hidden"
             />
           </div>
 
           {serverError ? (
-            <p className="text-sm text-red-500">{serverError}</p>
+            <p className="text-sm text-danger">{serverError}</p>
           ) : null}
 
           <button
             type="submit"
             disabled
-            className="w-full rounded bg-foreground text-background px-4 py-2 text-sm font-medium disabled:opacity-50"
+            className="w-full rounded bg-primary text-white px-4 py-2 text-sm font-medium hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
           >
             {isPending ? "Entrando..." : "Entrar"}
           </button>

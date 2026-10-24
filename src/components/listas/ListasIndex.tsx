@@ -33,8 +33,9 @@ import type { ListaIndex } from "@/lib/todos/types";
  * Botão "Nova lista" compacto (LB-19): a linha só-🔍 e o botão full-width
  * viram uma toolbar de UMA linha `[＋ Nova lista] … [🔍]` (`justify-between`)
  * no estado default com listas — 96px → 44px de controles antes da primeira
- * lista. Botão primário preenchido (`bg-foreground text-background`, padrão do
- * login) com `＋` em `aria-hidden`; alvo `min-h-11` (LB-4) preservado
+ * lista. Botão primário preenchido no accent do tema (`bg-primary
+ * text-white`, LB-21; padrão do login) com `＋` em `aria-hidden`; alvo
+ * `min-h-11` (LB-4) preservado
  * literalmente em todas as variantes — a compactação é horizontal + merge de
  * linhas, nunca do alvo. Variantes por contexto: toolbar (`shrink-0`) com
  * listas; filtro aberto → compacto `mt-2` abaixo do input (LB-17 intocado);
@@ -45,7 +46,7 @@ import type { ListaIndex } from "@/lib/todos/types";
 
 // Classes base do botão "Nova lista" (LB-19 §2.2) — idem nas três variantes.
 const CLASSES_BOTAO_NOVA_LISTA =
-  "flex min-h-11 items-center justify-center gap-2 rounded bg-foreground px-4 py-2 text-base font-medium text-background hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground";
+  "flex min-h-11 items-center justify-center gap-2 rounded bg-primary px-4 py-2 text-base font-medium text-white hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
 export function ListasIndex() {
   const listas = useListas();
@@ -82,13 +83,13 @@ export function ListasIndex() {
                 }}
                 placeholder="Filtrar por nome"
                 aria-label="Filtrar listas por nome"
-                className="flex-1 min-h-11 rounded border border-current/20 bg-background px-3 py-2 text-base text-foreground placeholder:text-muted"
+                className="flex-1 min-h-11 rounded border border-current/20 bg-background px-3 py-2 text-base text-foreground placeholder:text-muted focus:border-primary"
               />
               <button
                 type="button"
                 onClick={fecharFiltro}
                 aria-label="Fechar filtro"
-                className="flex min-h-11 min-w-11 items-center justify-center text-base text-muted hover:text-foreground"
+                className="flex min-h-11 min-w-11 items-center justify-center text-base text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <span aria-hidden="true">✕</span>
               </button>
@@ -103,7 +104,7 @@ export function ListasIndex() {
                 onClick={() => setFiltroAberto(true)}
                 aria-label="Abrir filtro por nome"
                 aria-expanded={false}
-                className="flex min-h-11 min-w-11 items-center justify-center text-base text-foreground hover:bg-current/5"
+                className="flex min-h-11 min-w-11 items-center justify-center text-base text-foreground hover:bg-current/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <span aria-hidden="true">🔍</span>
               </button>
@@ -144,7 +145,7 @@ export function ListasIndex() {
         <p className="mt-6 text-base">
           <Link
             href="/arquivadas"
-            className="text-muted underline-offset-4 hover:text-foreground hover:underline"
+            className="text-primary-hover underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             Arquivadas
           </Link>
@@ -184,7 +185,7 @@ function Linha({ lista }: { lista: ListaIndex }) {
     <li className="flex items-center gap-2">
       <Link
         href={`/listas/${lista.id}`}
-        className="flex min-h-11 flex-1 items-center justify-between gap-4 text-base"
+        className="flex min-h-11 flex-1 items-center justify-between gap-4 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <span className="flex items-center gap-1">
           {lista.nome}

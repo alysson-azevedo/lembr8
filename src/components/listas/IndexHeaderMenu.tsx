@@ -31,7 +31,7 @@ export function IndexHeaderMenu() {
         aria-expanded={open}
         aria-label="Mais opções"
         title="Mais opções"
-        className="flex min-h-11 min-w-11 items-center justify-center text-2xl text-muted hover:text-foreground"
+        className="flex min-h-11 min-w-11 items-center justify-center text-2xl text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <span aria-hidden="true">⋮</span>
       </button>
@@ -49,7 +49,7 @@ export function IndexHeaderMenu() {
           <div
             role="menu"
             aria-label="Opções"
-            className="absolute right-0 top-full z-20 mt-1 min-w-44 rounded border border-current/20 bg-background py-1"
+            className="absolute right-0 top-full z-20 mt-1 min-w-44 rounded border border-current/20 bg-surface py-1"
           >
             {/* Único item (por ora): logout — destrutivo, form server action.
                 Ponto de extensão para perfil futuro: novos itens (não-destrutivos)
@@ -58,7 +58,7 @@ export function IndexHeaderMenu() {
               <button
                 type="submit"
                 role="menuitem"
-                className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-red-600 dark:text-red-400 hover:bg-current/5"
+                className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-danger hover:bg-current/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <span aria-hidden="true">🚪</span> Sair
               </button>
