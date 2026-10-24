@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   normalizaTexto,
-  prefixoCombina,
   sugestoesPara,
+  textoCombina,
 } from "@/lib/todos/repository";
 
 /**
- * Funções puras do autocomplete (LB-13): normalização, casamento por prefixo
- * insensível a acento/caixa, dedup mais recente, limite 6 e ordenação por
- * `updatedAt` desc. Node puro (sem DOM/storage). Cobre AC 2, 3, 6.
+ * Funções puras do autocomplete (LB-13; LB-25 contains): normalização,
+ * casamento contains insensível a acento/caixa (qualquer posição), dedup mais
+ * recente, limite 6 e ordenação prefixo > mid-word, depois `updatedAt` desc.
+ * Node puro (sem DOM/storage). Cobre ACs 1-8 da spec LB-25.
  */
 type Rec = { texto: string; updatedAt: string };
 
@@ -28,29 +29,99 @@ describe("normalizaTexto (LB-13 AC 2)", () => {
   });
 });
 
-describe("prefixoCombina (LB-13 — só prefixo, não contém)", () => {
+describe("textoCombina (LB-25 — contains, em qualquer posição)", () => {
   it("insensível a acento/caixa", () => {
-    expect(prefixoCombina("cafe", "Café")).toBe(true);
-    expect(prefixoCombina("ARROZ", "Arroz")).toBe(true);
+    expect(textoCombina("cafe", "Café")).toBe(true);
+    expect(textoCombina("ARROZ", "Arroz")).toBe(true);
   });
-  it("casa prefixo de texto composto", () => {
-    expect(prefixoCombina("ar", "Arroz integral")).toBe(true);
+  it("casa prefixo de texto composto (sem regressão LB-13)", () => {
+    expect(textoCombina("ar", "Arroz integral")).toBe(true);
   });
-  it("não casa 'contém' (mid-word) — fora de escopo", () => {
-    expect(prefixoCombina("rr", "Arroz")).toBe(false);
-    expect(prefixoCombina("rroz", "Arroz")).toBe(false);
+  it("casa mid-word — contains (LB-25; era fora de escopo na LB-13)", () => {
+    expect(textoCombina("rr", "Arroz")).toBe(true);
+    expect(textoCombina("rroz", "Arroz")).toBe(true);
   });
-  it("prefixo vazio → false (não casa nada)", () => {
-    expect(prefixoCombina("", "Arroz")).toBe(false);
-    expect(prefixoCombina("   ", "Arroz")).toBe(false);
+  it("casa qualquer palavra e substring parcial (sem tokenização)", () => {
+    expect(textoCombina("laminado", "Papel Laminado")).toBe(true);
+    expect(textoCombina("aminado", "Papel Laminado")).toBe(true);
+  });
+  it("não casa quando o texto não contém a query", () => {
+    expect(textoCombina("xyz", "Arroz")).toBe(false);
+  });
+  it("query vazia → false (não casa nada)", () => {
+    expect(textoCombina("", "Arroz")).toBe(false);
+    expect(textoCombina("   ", "Arroz")).toBe(false);
   });
 });
 
-describe("sugestoesPara (LB-13)", () => {
+describe("sugestoesPara (LB-13; LB-25 contains)", () => {
   it("AC 2 — acento/caixa: query 'cafe' → ['Café']; 'ARROZ' → ['Arroz']", () => {
     const items: Rec[] = [rec("Café", "2026-01-01"), rec("Arroz", "2026-01-02")];
     expect(sugestoesPara(items, "cafe", 6)).toEqual(["Café"]);
     expect(sugestoesPara(items, "ARROZ", 6)).toEqual(["Arroz"]);
+  });
+
+  it("AC 1 — contains: palavra não-inicial encontra o item", () => {
+    const items: Rec[] = [rec("Papel Laminado", "2026-01-01")];
+    expect(sugestoesPara(items, "laminado", 6)).toEqual(["Papel Laminado"]);
+  });
+
+  it("AC 2 — substring parcial também casa (sem tokenização por palavra)", () => {
+    const items: Rec[] = [rec("Papel Laminado", "2026-01-01")];
+    expect(sugestoesPara(items, "aminado", 6)).toEqual(["Papel Laminado"]);
+  });
+
+  it("AC 3 — acento + contains juntos (teste explícito)", () => {
+    const items: Rec[] = [
+      rec("Ação", "2026-01-01"),
+      rec("Café", "2026-01-02"),
+      rec("Papel Laminado", "2026-01-03"),
+    ];
+    // mid-word com acento no texto: "acao" contém "cao"
+    expect(sugestoesPara(items, "cao", 6)).toEqual(["Ação"]);
+    expect(sugestoesPara(items, "acao", 6)).toEqual(["Ação"]);
+    expect(sugestoesPara(items, "cafe", 6)).toEqual(["Café"]);
+    // multi-palavra contígua, ambos os lados normalizados
+    expect(sugestoesPara(items, "papel laminado", 6)).toEqual(["Papel Laminado"]);
+  });
+
+  it("AC 5 — ordenação: prefixo antes de mid-word", () => {
+    const items: Rec[] = [
+      rec("Lâmpada", "2026-01-01"), // prefixo ("lampada" começa com "lam")
+      rec("Papel Laminado", "2026-03-01"), // mid-word (contém "lam")
+    ];
+    // prefixo mais antigo precede mid-word mais recente
+    expect(sugestoesPara(items, "lam", 6)).toEqual([
+      "Lâmpada",
+      "Papel Laminado",
+    ]);
+  });
+
+  it("AC 6 — limite aplicado após a ordenação: prefixos não são cortados por mid-words recentes", () => {
+    const items: Rec[] = [
+      rec("Arroz", "2026-01-01"), // prefixo "a"
+      rec("Aveia", "2026-02-01"), // prefixo "a"
+      rec("Açaí", "2026-03-01"), // prefixo "a"
+      rec("Banana", "2026-04-01"), // mid-word ("banana" contém "a")
+      rec("Berinjela", "2026-05-01"), // mid-word
+      rec("Batata", "2026-06-01"), // mid-word
+      rec("Goiaba", "2026-07-01"), // mid-word
+      rec("Broa", "2026-08-01"), // mid-word ("broa" contém "a")
+    ];
+    const res = sugestoesPara(items, "a", 6);
+    expect(res).toEqual([
+      "Açaí", // prefixos por updatedAt desc
+      "Aveia",
+      "Arroz",
+      "Broa", // mid-words mais recentes completam o limite
+      "Goiaba",
+      "Batata",
+    ]);
+  });
+
+  it("contains: 'rroz' agora casa 'Arroz' (era fora de escopo na LB-13)", () => {
+    const items: Rec[] = [rec("Arroz", "2026-01-01")];
+    expect(sugestoesPara(items, "rroz", 6)).toEqual(["Arroz"]);
   });
 
   it("AC 3 — todas as listas: não filtra por listId (recebe só {texto, updatedAt})", () => {
@@ -95,11 +166,6 @@ describe("sugestoesPara (LB-13)", () => {
     const items: Rec[] = [rec("Arroz", "2026-01-01")];
     expect(sugestoesPara(items, "", 6)).toEqual([]);
     expect(sugestoesPara(items, "   ", 6)).toEqual([]);
-  });
-
-  it("não casa 'contém' (fora de escopo): 'rroz' não casa 'Arroz'", () => {
-    const items: Rec[] = [rec("Arroz", "2026-01-01")];
-    expect(sugestoesPara(items, "rroz", 6)).toEqual([]);
   });
 
   it("não muta a entrada", () => {
