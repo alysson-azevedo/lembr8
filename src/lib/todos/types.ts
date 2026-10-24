@@ -63,10 +63,12 @@ export interface ListasRepository {
   /** Itens da lista em ordem de exibição: a-fazer (inserção) ++ concluídos (conclusão). */
   listItems(listId: string): Item[];
   /**
-   * Textos sugeridos para autocomplete ao digitar um novo item (LB-13): itens de
-   * **todas** as listas da conta, dedup por texto normalizado mantendo o mais
-   * recente, casamento por prefixo insensível a acento/caixa, ordenados por
-   * `updatedAt` desc, limitado a `limit`. Lê do cache; sem chamada ao Supabase.
+   * Textos sugeridos para autocomplete ao digitar um novo item (LB-13; LB-25):
+   * itens de **todas** as listas da conta, dedup por texto normalizado mantendo
+   * o mais recente, casamento por **contains** em qualquer posição (insensível a
+   * acento/caixa) com casamentos por prefixo antes de mid-word, ordenados por
+   * `updatedAt` desc dentro do grupo, limitado a `limit`. Lê do cache; sem
+   * chamada ao Supabase.
    */
   listItemSuggestions(query: string, limit: number): string[];
   /** Cria uma lista com o nome dado e a retorna. */

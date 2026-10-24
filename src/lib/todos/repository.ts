@@ -183,28 +183,34 @@ export function normalizaTexto(s: string): string {
 }
 
 /**
- * Casamento por prefixo, insensível a acento/caixa (LB-13): `normalizaTexto(texto)`
- * começa com `normalizaTexto(prefix)`. Prefixo vazio → false (não casa nada).
- * **Não** casa "contém" (mid-word) — fora de escopo.
+ * Casamento por substring (contains), insensível a acento/caixa (LB-25):
+ * `normalizaTexto(texto)` **contém** `normalizaTexto(query)` em qualquer
+ * posição — prefixo ou mid-word ("laminado" casa "Papel Laminado";
+ * "aminado" também — substring crua, sem tokenização por palavra).
+ * Query vazia → false (não casa nada). Substitui o `prefixoCombina`
+ * (startsWith) da LB-13 — o prefixo continua casando, agora via contains.
  */
-export function prefixoCombina(prefix: string, texto: string): boolean {
-  const p = normalizaTexto(prefix);
-  if (!p) return false;
-  return normalizaTexto(texto).startsWith(p);
+export function textoCombina(query: string, texto: string): boolean {
+  const q = normalizaTexto(query);
+  if (!q) return false;
+  return normalizaTexto(texto).includes(q);
 }
 
 /**
- * Sugestões de itens para o autocomplete (LB-13 AC 1/2/3/4/6).
+ * Sugestões de itens para o autocomplete (LB-13 AC 1/2/3/4/6; LB-25 contains).
  * `items`: registros `{ texto, updatedAt }` (lê-se do cache; `updatedAt` é o
  * critério de recência já existente — sem dado novo).
  * Regras:
  *  (a) dedup por `normalizaTexto(texto)`, mantendo a ocorrência de **maior
  *      `updatedAt`** (AC "todas as listas" — textos iguais em listas diferentes
  *      viram uma sugestão; mostra o texto da ocorrência mais recente, preser-
- *      vando capitalização/acentos daquela ocorrência);
- *  (b) filtra por `prefixoCombina(query, texto)` (só prefixo);
- *  (c) ordena por `updatedAt` **desc** (mais recente primeiro);
- *  (d) limita a `limit` (AC = 6).
+ *      vando capitalização/acentos daquela ocorrência); a `norm` já computada
+ *      é guardada no valor para o filtro/ordenação não re-normalizarem;
+ *  (b) filtra por **contains** — `norm.includes(q)`, o critério de
+ *      `textoCombina` na forma pré-computada (casamento em qualquer posição);
+ *  (c) ordena por **prefixo antes de mid-word** (`norm.startsWith(q)` ranqueia
+ *      0), depois `updatedAt` **desc** dentro de cada grupo;
+ *  (d) limita a `limit` (AC = 6) **após** a ordenação completa.
  * Retorna `string[]` (os textos sugeridos). Não muta a entrada.
  */
 export function sugestoesPara(
@@ -214,21 +220,24 @@ export function sugestoesPara(
 ): string[] {
   const q = normalizaTexto(query);
   if (!q) return [];
-  // (a) dedup por texto normalizado, mantendo o de maior updatedAt.
-  const best = new Map<string, { texto: string; updatedAt: string }>();
+  // (a) dedup por texto normalizado, mantendo o de maior updatedAt (com norm).
+  const best = new Map<string, { texto: string; norm: string; updatedAt: string }>();
   for (const it of items) {
     const norm = normalizaTexto(it.texto);
     if (!norm) continue;
     const ex = best.get(norm);
     if (!ex || it.updatedAt > ex.updatedAt) {
-      best.set(norm, { texto: it.texto, updatedAt: it.updatedAt });
+      best.set(norm, { texto: it.texto, norm, updatedAt: it.updatedAt });
     }
   }
-  // (b)(c)(d) filtra prefixo, ordena updatedAt desc, limita.
+  // (b)(c)(d) filtra contains (norm pré-computada — mesmo critério de
+  // textoCombina), ordena prefixo > mid-word e updatedAt desc, limita após.
   return [...best.values()]
-    .filter((c) => normalizaTexto(c.texto).startsWith(q))
-    .sort((a, b) =>
-      a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0,
+    .filter((c) => c.norm.includes(q))
+    .sort(
+      (a, b) =>
+        (a.norm.startsWith(q) ? 0 : 1) - (b.norm.startsWith(q) ? 0 : 1) ||
+        (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0),
     )
     .slice(0, limit)
     .map((c) => c.texto);

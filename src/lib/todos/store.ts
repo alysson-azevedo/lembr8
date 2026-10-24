@@ -163,12 +163,13 @@ function subscribe(listener: () => void): () => void {
 }
 
 /**
- * Sugestões de autocomplete para o campo de novo item (LB-13): itens de todas
- * as listas da conta, mais recente primeiro (`updatedAt` desc), casamento por
- * prefixo insensível a acento/caixa, ≤`limit` (default 6). Lê só do cache (sem
- * Supabase). Memoizado por `(version, query, limit)` para manter referência
- * estável entre renders (requisito do `useSyncExternalStore`); invalidado em
- * toda mutação/sync/reset via `bumpVersion`.
+ * Sugestões de autocomplete para o campo de novo item (LB-13; LB-25): itens de
+ * todas as listas da conta, casamento por **contains** em qualquer posição
+ * (insensível a acento/caixa) com prefixo antes de mid-word, mais recente
+ * primeiro (`updatedAt` desc) dentro do grupo, ≤`limit` (default 6). Lê só do
+ * cache (sem Supabase). Memoizado por `(version, query, limit)` para manter
+ * referência estável entre renders (requisito do `useSyncExternalStore`);
+ * invalidado em toda mutação/sync/reset via `bumpVersion`.
  */
 export function useItemSuggestions(query: string, limit = 6): string[] {
   return useSyncExternalStore(
