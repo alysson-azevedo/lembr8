@@ -2,6 +2,7 @@
 
 ## Visão geral
 - **App**: PWA em Next.js + TypeScript, hospedado na Vercel.
+- **PWA/shell offline**: instalável (manifest com ícones 192/512/maskable, `theme_color` `#1c1c23`); service worker **manual** (`public/sw.js`, zero deps — ADR 2026-10-24): precache do shell, navegações network-first com fallback, `/_next/static` cache-first, `/api/*` network-only. O Web Push futuro herda este SW.
 - **Backend**: Supabase — Postgres (dados), Storage (arquivos), Auth.
 - **Auth**: Supabase Auth com e-mail + senha.
 - **Segurança de dados**: todo dado do app protegido por RLS do usuário autenticado. Nenhuma tabela de dados de usuário sem policy.
