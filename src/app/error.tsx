@@ -9,7 +9,7 @@ export default function Error({ reset }: { error: Error; reset: () => void }) {
         <button
           type="button"
           onClick={reset}
-          className="mt-8 rounded border border-current px-4 py-2 text-sm"
+          className="mt-8 rounded border border-current px-4 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           Tentar novamente
         </button>

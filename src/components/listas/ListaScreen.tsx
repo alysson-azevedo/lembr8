@@ -193,7 +193,7 @@ export function ListaScreen({ listId }: { listId: string }) {
                 }
               }}
               onBlur={commitEdit}
-              className="w-full rounded border border-current/20 px-3 py-2 text-base outline-none focus:border-current/50"
+              className="w-full rounded border border-current/20 px-3 py-2 text-base outline-none focus:border-primary"
             />
           ) : (
             <h1
@@ -223,7 +223,7 @@ export function ListaScreen({ listId }: { listId: string }) {
                 aria-expanded={menuAberto}
                 aria-label="Mais opções da lista"
                 title="Mais opções"
-                className="flex min-h-11 min-w-11 items-center justify-center text-2xl text-muted hover:text-foreground"
+                className="flex min-h-11 min-w-11 items-center justify-center text-2xl text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 ⋮
               </button>
@@ -240,7 +240,7 @@ export function ListaScreen({ listId }: { listId: string }) {
                   <div
                     role="menu"
                     aria-label="Opções da lista"
-                    className="absolute right-0 top-full z-20 mt-1 min-w-44 rounded border border-current/20 bg-background py-1"
+                    className="absolute right-0 top-full z-20 mt-1 min-w-44 rounded border border-current/20 bg-surface py-1"
                   >
                     {/* LB-14 — Fixar/Desfixar (não destrutivo, toggle — texto
                         reflete o estado). Não destrutivo vem antes do destrutivo
@@ -252,7 +252,7 @@ export function ListaScreen({ listId }: { listId: string }) {
                         setMenuAberto(false);
                         togglePinLista(lista.id);
                       }}
-                      className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-foreground hover:bg-current/5"
+                      className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-foreground hover:bg-current/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     >
                       <span aria-hidden="true">📌</span>{" "}
                       {lista.pinned ? "Desfixar lista" : "Fixar lista"}
@@ -262,7 +262,7 @@ export function ListaScreen({ listId }: { listId: string }) {
                       type="button"
                       role="menuitem"
                       onClick={onCopiarLink}
-                      className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-foreground hover:bg-current/5"
+                      className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-foreground hover:bg-current/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     >
                       <span aria-hidden="true">🔗</span> Copiar link
                     </button>
@@ -281,7 +281,7 @@ export function ListaScreen({ listId }: { listId: string }) {
                           setConfirmacao({ tipo: "archive", alvo: lista });
                         }
                       }}
-                      className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-foreground hover:bg-current/5"
+                      className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-foreground hover:bg-current/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     >
                       <span aria-hidden="true">🗃️</span>{" "}
                       {lista.archived ? "Desarquivar lista" : "Arquivar lista"}
@@ -294,7 +294,7 @@ export function ListaScreen({ listId }: { listId: string }) {
                         setMenuAberto(false);
                         setConfirmacao({ tipo: "lista", alvo: lista });
                       }}
-                      className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-red-600 dark:text-red-400 hover:bg-current/5"
+                      className="flex min-h-11 w-full items-center gap-2 px-3 text-base text-danger hover:bg-current/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     >
                       <span aria-hidden="true">🗑️</span> Excluir lista
                     </button>
@@ -367,7 +367,7 @@ export function ListaScreen({ listId }: { listId: string }) {
               setAtivoIdx(null);
             }
           }}
-          className="w-full rounded border border-current/20 px-3 py-3 text-base outline-none focus:border-current/50"
+          className="w-full rounded border border-current/20 px-3 py-3 text-base outline-none focus:border-primary"
         />
         {mostrar ? (
           <ItemSuggestions
@@ -406,7 +406,7 @@ export function ListaScreen({ listId }: { listId: string }) {
             <button
               type="button"
               onClick={() => setConfirmacao({ tipo: "item", alvo: item })}
-              className="flex min-h-11 min-w-11 items-center justify-center text-lg text-muted hover:text-foreground"
+              className="flex min-h-11 min-w-11 items-center justify-center text-lg text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               aria-label={`Excluir "${item.texto}"`}
               title="Excluir item"
             >
@@ -439,7 +439,7 @@ export function ListaScreen({ listId }: { listId: string }) {
                 <button
                   type="button"
                   onClick={() => setConfirmacao({ tipo: "item", alvo: item })}
-                  className="flex min-h-11 min-w-11 items-center justify-center text-lg text-muted hover:text-foreground"
+                  className="flex min-h-11 min-w-11 items-center justify-center text-lg text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                   aria-label={`Excluir "${item.texto}"`}
                   title="Excluir item"
                 >
