@@ -92,15 +92,16 @@ describe("ListasIndex — botão 'Nova lista' compacto na toolbar (LB-19)", () =
     expect(toolbar?.children[1]).toBe(lupa);
   });
 
-  it("primário preenchido (bg-foreground/text-background) com ＋ aria-hidden e focus visível", async () => {
+  it("primário preenchido (bg-primary/text-white, LB-21) com ＋ aria-hidden e focus visível", async () => {
     createList();
     render(<ListasIndex />);
     await screen.findByText("Lista 1");
     // nome acessível é só "Nova lista" (＋ é aria-hidden)
     const btn = screen.getByRole("button", { name: "Nova lista" });
-    expect(btn.className).toContain("bg-foreground");
-    expect(btn.className).toContain("text-background");
-    expect(btn.className).toContain("focus-visible:outline-foreground");
+    expect(btn.className).toContain("bg-primary ");
+    expect(btn.className).toContain("text-white");
+    expect(btn.className).toContain("hover:bg-primary-hover");
+    expect(btn.className).toContain("focus-visible:outline-primary");
     const plus = btn.querySelector("span[aria-hidden='true']");
     expect(plus?.textContent).toBe("＋");
   });

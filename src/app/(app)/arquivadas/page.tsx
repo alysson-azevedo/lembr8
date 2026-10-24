@@ -14,7 +14,7 @@ export default async function ArquivadasPage() {
       <div className="flex items-center justify-between gap-4">
         <Link
           href="/"
-          className="flex min-h-11 items-center text-base"
+          className="flex min-h-11 items-center text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           aria-label="Voltar para o índice de listas"
         >
           ← Listas
@@ -22,7 +22,7 @@ export default async function ArquivadasPage() {
         <form action={logout}>
           <button
             type="submit"
-            className="rounded border border-current px-4 py-2 text-sm min-h-11"
+            className="rounded border border-current px-4 py-2 text-sm min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             Sair
           </button>

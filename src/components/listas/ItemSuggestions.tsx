@@ -6,8 +6,8 @@
  * é tratado no `ListaScreen`, que controla `aria-activedescendant`. Sem lib.
  *
  * Alvo/touch ≥44px por option (LB-4); `max-h-72 overflow-y-auto` rola em viewport
- * estreita (mobile). Sem novos tokens de cor — reutiliza `--background`/
- * `--foreground` + realces `bg-current/10`/`bg-current/5` já usados no app.
+ * estreita (mobile). Sem novos tokens de cor — reutiliza os tokens do tema
+ * LB-21 (`--surface`/`--foreground`) + realces `bg-current/10`/`bg-current/5`.
  */
 type ItemSuggestionsProps = {
   listboxId: string;
@@ -29,7 +29,7 @@ export function ItemSuggestions({
       role="listbox"
       id={listboxId}
       aria-label="Itens sugeridos"
-      className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded border border-current/20 bg-background py-1"
+      className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded border border-current/20 bg-surface py-1"
     >
       {suggestions.map((texto, i) => {
         const active = i === activeIndex;

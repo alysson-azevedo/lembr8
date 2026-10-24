@@ -342,11 +342,11 @@ describe("No-regression: menu mantém Fixar/Copiar/Excluir (AC 13)", () => {
     expect(screen.getByRole("menuitem", { name: "Arquivar lista" })).toBeInTheDocument();
   });
 
-  it("excluir lista continua abrindo ConfirmDialog destrutivo (vermelho)", async () => {
+  it("excluir lista continua abrindo ConfirmDialog destrutivo (danger)", async () => {
     const id = newListaId();
     render(<ListaScreen listId={id} />);
     await abrirMenu();
     const excluir = screen.getByRole("menuitem", { name: "Excluir lista" });
-    expect(excluir.className).toContain("text-red");
+    expect(excluir.className).toContain("text-danger");
   });
 });

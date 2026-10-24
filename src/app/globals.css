@@ -1,29 +1,62 @@
 @import "tailwindcss";
 
+/*
+ * Tema Mystical Blue (JuxTheme) — LB-21. Dark-only: a paleta de referência
+ * (~/.oh-my-custom-zsh/mystical-blue-plasma) é dark, então não há media query
+ * de prefers-color-scheme nem variante clara. `color-scheme: dark` faz os
+ * controles nativos (checkbox, autofill, scrollbar) renderizarem escuro.
+ *
+ * Ajustes mínimos de AA sobre a referência, matiz preservado (ver
+ * docs/product/design/lb-21-tema-mystical-blue.md §2.1): --muted #888a9a →
+ * #9092a2 e --danger #da4453 → #e26875 (todo uso atual é texto; sobre
+ * --surface a paleta literal ficaria em ~4,4:1 / ~3,5:1).
+ *
+ * --surface-raised, --success e --warning ficam definidos sem uso atual
+ * (paleta completa da issue; disponíveis para uso futuro).
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --muted: #6b7280;
+  color-scheme: dark;
+
+  --background: #1c1c23;
+  --surface: #25272f;
+  --surface-raised: #2b2e38;
+  --foreground: #e3e3e3;
+  --muted: #9092a2;
+  --primary: #3e6fd9;
+  --primary-hover: #5c8ae6;
+  --selection: #474f71;
+  --success: #27ae60;
+  --danger: #e26875;
+  --warning: #f67400;
+  --overlay: rgb(0 0 0 / 0.4);
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-selection: var(--selection);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-overlay: var(--overlay);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --muted: #9ca3af;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  /* Checkbox e afins nativos herdam o accent do tema. */
+  accent-color: var(--primary);
+}
+
+/* Seleção de texto no azul do tema (Selection BackgroundNormal do JuxTheme). */
+::selection {
+  background-color: var(--selection);
 }
