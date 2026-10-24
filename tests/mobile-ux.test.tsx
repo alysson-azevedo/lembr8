@@ -73,6 +73,39 @@ describe("ListasIndex — alvos de toque ≥44px (CA 2)", () => {
   });
 });
 
+describe("ListasIndex — botão 'Nova lista' compacto na toolbar (LB-19)", () => {
+  it("com listas: sem w-full, mantém min-h-11 + text-base, na mesma linha do 🔍", async () => {
+    createList();
+    render(<ListasIndex />);
+    await screen.findByText("Lista 1");
+    const btn = screen.getByText("Nova lista");
+    // compacto (sem w-full), alvo e fonte preservados (AC 2/3 — LB-4)
+    expect(btn.className).toContain("min-h-11");
+    expect(btn.className).toContain("text-base");
+    expect(btn.className).not.toContain("w-full");
+    // toolbar de UMA linha justify-between com exatamente [botão, 🔍] (AC 1)
+    const lupa = screen.getByLabelText("Abrir filtro por nome");
+    const toolbar = btn.closest("div");
+    expect(toolbar?.className).toContain("justify-between");
+    expect(toolbar?.childElementCount).toBe(2);
+    expect(toolbar?.children[0]).toBe(btn);
+    expect(toolbar?.children[1]).toBe(lupa);
+  });
+
+  it("primário preenchido (bg-foreground/text-background) com ＋ aria-hidden e focus visível", async () => {
+    createList();
+    render(<ListasIndex />);
+    await screen.findByText("Lista 1");
+    // nome acessível é só "Nova lista" (＋ é aria-hidden)
+    const btn = screen.getByRole("button", { name: "Nova lista" });
+    expect(btn.className).toContain("bg-foreground");
+    expect(btn.className).toContain("text-background");
+    expect(btn.className).toContain("focus-visible:outline-foreground");
+    const plus = btn.querySelector("span[aria-hidden='true']");
+    expect(plus?.textContent).toBe("＋");
+  });
+});
+
 describe("ListaScreen — entrada inline com teclado mobile (CA 3 — sem regressão)", () => {
   it("input tem fonte ≥16px (text-base) e enterKeyHint=enter (sem autoFocus)", () => {
     const id = criarListaId();

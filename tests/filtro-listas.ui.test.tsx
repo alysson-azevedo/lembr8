@@ -316,4 +316,19 @@ describe("ListasIndex — filtro por nome, affordance expansível (LB-17 PR1 rew
     fireEvent.click(botao);
     expect(pushMock.mock.calls.length).toBe(pushAntes + 1);
   });
+
+  it("com filtro aberto: botão compacto (mt-2) abaixo do input full-width (LB-19)", async () => {
+    newListaIds(1);
+    render(<ListasIndex />);
+    await screen.findByText("Lista 1");
+    abrirFiltro();
+
+    const botao = screen.getByText("Nova lista");
+    expect(botao.className).toContain("mt-2");
+    expect(botao.className).not.toContain("w-full");
+    // input continua full-width (flex-1); botão fora da linha dele
+    const input = screen.getByLabelText("Filtrar listas por nome");
+    expect(input.className).toContain("flex-1");
+    expect(input.closest("div")).not.toContainElement(botao);
+  });
 });
